@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Ignore package-lock.json for cross-platform Cloudflare builds
+package-lock.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
