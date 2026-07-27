@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 認証判定関数
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // ユーザー情報取得関数
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role == 'admin';
+    }
+
+    function isStaff() {
+      return isAuthenticated() && (getUserData().role == 'staff' || getUserData().role == 'admin');
+    }
+
+    function isDoctor() {
+      return isAuthenticated() && getUserData().role == 'doctor';
+    }
+
+    // users コレクション
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || request.auth.uid == userId;
+    }
+
+    // doctors コレクション
+    match /doctors/{doctorId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // patients コレクション
+    match /patients/{patientId} {
+      // 管理者およびスタッフは全患者閲覧可能。ドクターは自身の担当患者のみ閲覧可能
+      allow read: if isStaff() || (isDoctor() && resource.data.assignedDoctorId == getUserData().doctorId);
+      
+      // 管理者およびスタッフは作成・更新可能
+      allow create, update: if isStaff();
+      
+      // 管理者のみアーカイブ・削除が可能
+      allow delete: if isAdmin();
+
+      // timeline サブコレクション
+      match /timeline/{timelineId} {
+        allow read: if isStaff() || (isDoctor() && get(/databases/$(database)/documents/patients/$(patientId)).data.assignedDoctorId == getUserData().doctorId);
+        allow create, update: if isStaff() || isDoctor();
+        allow delete: if isAdmin();
+      }
+    }
+  }
+}
