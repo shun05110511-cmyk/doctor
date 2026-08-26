@@ -54,12 +54,13 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
       setDoctorAssessment('');
       setDoctorAdvice('');
       setFollowUpPlan('');
-      setAssignedDoctorId('doc-shirao');
+      const defaultDoc = (user?.role === 'doctor' && user?.doctorId) ? user.doctorId : (doctors[0]?.id || 'doc-shirao');
+      setAssignedDoctorId(defaultDoc);
       setStatus('new');
       setNotes('');
     }
     setErrorMsg('');
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen, doctors, user]);
 
   if (!isOpen) return null;
 
