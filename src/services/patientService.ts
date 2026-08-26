@@ -61,14 +61,23 @@ function getLocalPatients(): Patient[] {
   const saved = localStorage.getItem(LOCAL_STORAGE_PATIENTS_KEY);
   if (saved) {
     try {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      const parsed: Patient[] = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        // テスト用初期サンプルデータ (P-001〜P-007) を自動消去
+        const cleaned = parsed.filter(
+          (p) => !['patient-p-001', 'patient-p-002', 'patient-p-003', 'patient-p-004', 'patient-p-005', 'patient-p-006', 'patient-p-007'].includes(p.id)
+        );
+        if (cleaned.length !== parsed.length) {
+          saveLocalPatients(cleaned);
+        }
+        return cleaned;
+      }
     } catch (e) {
       console.error(e);
     }
   }
-  localStorage.setItem(LOCAL_STORAGE_PATIENTS_KEY, JSON.stringify(INITIAL_PATIENTS));
-  return INITIAL_PATIENTS;
+  saveLocalPatients([]);
+  return [];
 }
 
 function saveLocalPatients(patients: Patient[]) {
