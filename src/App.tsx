@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { PatientListPage } from './pages/PatientListPage';
 import { PatientDetailPage } from './pages/PatientDetailPage';
+import { PortalPage } from './pages/PortalPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -32,6 +33,8 @@ export const App: React.FC = () => {
         <PatientProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/admin" element={<PortalPage />} />
+            <Route path="/doctor/:docSlug" element={<PortalPage />} />
             <Route
               path="/"
               element={

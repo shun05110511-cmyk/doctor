@@ -1,7 +1,8 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { usePatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
-import { Folder, Users, UserCheck, AlertCircle, FileText, ChevronRight } from 'lucide-react';
+import { Folder, Users, UserCheck, AlertCircle, FileText, ChevronRight, ExternalLink } from 'lucide-react';
 
 interface Props {
   selectedFilter: string; // 'all' | 'doc-shirao' | 'doc-fukaya' | 'doc-okada' | 'unassigned' | 'waiting_doctor' | 'completed' | 'archived'
@@ -190,6 +191,48 @@ export const DoctorSidebar: React.FC<Props> = ({ selectedFilter, onSelectFilter 
             {patients.filter((p) => p.archived).length}
           </span>
         </button>
+      </div>
+
+      {/* 方式B: 専用ポータル直接リンク集 */}
+      <div className="pt-3 border-t border-slate-100 space-y-1.5">
+        <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 flex items-center gap-1">
+          <ExternalLink className="w-3 h-3 text-blue-600" />
+          <span>役職・医師専用ポータルURL</span>
+        </h4>
+        <div className="space-y-1 text-[11px]">
+          <Link
+            to="/admin"
+            className="flex items-center justify-between p-1.5 rounded hover:bg-red-50 text-slate-700 hover:text-red-700 transition"
+            title="管理者用ポータル直リンク"
+          >
+            <span className="font-semibold">👑 管理者ポータル</span>
+            <span className="font-mono text-[10px] text-slate-400">/admin</span>
+          </Link>
+          <Link
+            to="/doctor/shirao"
+            className="flex items-center justify-between p-1.5 rounded hover:bg-blue-50 text-slate-700 hover:text-blue-700 transition"
+            title="白尾医師専用ポータル"
+          >
+            <span className="font-semibold">🩺 白尾医師ポータル</span>
+            <span className="font-mono text-[10px] text-slate-400">/doctor/shirao</span>
+          </Link>
+          <Link
+            to="/doctor/fukaya"
+            className="flex items-center justify-between p-1.5 rounded hover:bg-blue-50 text-slate-700 hover:text-blue-700 transition"
+            title="深谷医師専用ポータル"
+          >
+            <span className="font-semibold">🩺 深谷医師ポータル</span>
+            <span className="font-mono text-[10px] text-slate-400">/doctor/fukaya</span>
+          </Link>
+          <Link
+            to="/doctor/okada"
+            className="flex items-center justify-between p-1.5 rounded hover:bg-blue-50 text-slate-700 hover:text-blue-700 transition"
+            title="岡田医師専用ポータル"
+          >
+            <span className="font-semibold">🩺 岡田医師ポータル</span>
+            <span className="font-mono text-[10px] text-slate-400">/doctor/okada</span>
+          </Link>
+        </div>
       </div>
     </aside>
   );
