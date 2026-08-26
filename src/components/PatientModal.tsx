@@ -31,7 +31,10 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
   const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // モーダルが開いた時だけ初期化（ドロップダウンの選択変更が勝手に上書きされないように依存配列を調整）
   useEffect(() => {
+    if (!isOpen) return;
+
     if (initialData) {
       setPatientCode(initialData.patientCode);
       setDisplayName(initialData.displayName);
@@ -60,7 +63,7 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
       setNotes('');
     }
     setErrorMsg('');
-  }, [initialData, isOpen, doctors, user]);
+  }, [isOpen, initialData]);
 
   if (!isOpen) return null;
 
@@ -211,7 +214,7 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
               <select
                 value={assignedDoctorId}
                 onChange={(e) => setAssignedDoctorId(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-semibold text-blue-900"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-semibold text-blue-900 cursor-pointer"
               >
                 {doctors.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -227,7 +230,7 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as PatientStatus)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white cursor-pointer"
               >
                 {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
                   <option key={key} value={key}>

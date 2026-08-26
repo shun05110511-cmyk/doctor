@@ -27,7 +27,7 @@ export const PortalPage: React.FC = () => {
     if (user?.role === 'doctor') {
       if (isAdminPortal || (targetDoc && targetDoc.id !== user.doctorId)) {
         alert('他の医師または管理者ポータルへのアカウント切り替え権限がありません。');
-        navigate(`/patients?filter=${user.doctorId}`, { replace: true });
+        navigate('/', { replace: true });
         return;
       }
     }
@@ -36,14 +36,14 @@ export const PortalPage: React.FC = () => {
       const adminUser = availableTestUsers.find((u) => u.role === 'admin');
       if (adminUser) {
         switchUser(adminUser);
-        navigate('/', { replace: true });
       }
+      navigate('/', { replace: true });
     } else if (targetDoc) {
       const docUser = availableTestUsers.find((u) => u.doctorId === targetDoc.id);
       if (docUser) {
         switchUser(docUser);
-        navigate(`/patients?filter=${targetDoc.id}`, { replace: true });
       }
+      navigate('/', { replace: true });
     }
   }, [isAdminPortal, targetDoc, availableTestUsers, switchUser, user, navigate]);
 
@@ -61,7 +61,7 @@ export const PortalPage: React.FC = () => {
             : 'ポータル移動中...'}
         </h1>
         <p className="text-xs text-slate-500">
-          アクセス権限を確認して専用ポータルへ移動しています。少々お待ちください。
+          アクセス権限を確認して統一ダッシュボードへ移動しています。少々お待ちください。
         </p>
       </div>
     </Layout>
