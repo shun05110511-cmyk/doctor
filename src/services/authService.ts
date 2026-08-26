@@ -78,6 +78,16 @@ export function setQuickSwitchUser(user: UserProfile): void {
   localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(user));
 }
 
+export function getPortalPath(user: UserProfile | null): string {
+  if (!user) return '/login';
+  if (user.role === 'admin' || user.role === 'staff') return '/admin';
+  if (user.role === 'doctor') {
+    const slug = user.doctorId?.replace('doc-', '') || 'shirao';
+    return `/doctor/${slug}`;
+  }
+  return '/admin';
+}
+
 export async function logoutUser(): Promise<void> {
   localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
   if (isFirebaseConfigured) {

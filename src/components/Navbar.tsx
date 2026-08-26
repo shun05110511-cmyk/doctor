@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getPortalPath } from '../services/authService';
 import { Stethoscope, LogOut, User, ShieldCheck, ChevronDown } from 'lucide-react';
 import type { UserRole } from '../types';
 
@@ -23,6 +24,7 @@ export const Navbar: React.FC = () => {
   if (!user) return null;
 
   const roleConfig = ROLE_LABELS[user.role] || ROLE_LABELS.staff;
+  const portalPath = getPortalPath(user);
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
@@ -30,7 +32,7 @@ export const Navbar: React.FC = () => {
         <div className="flex justify-between h-16 items-center">
           {/* アプリ名・ロゴ */}
           <div className="flex items-center space-x-3">
-            <Link to="/" className="flex items-center gap-2 group">
+            <Link to={portalPath} className="flex items-center gap-2 group">
               <div className="p-2 bg-blue-600 rounded-lg text-white group-hover:bg-blue-700 transition">
                 <Stethoscope className="w-5 h-5" />
               </div>
@@ -69,6 +71,7 @@ export const Navbar: React.FC = () => {
                         onClick={() => {
                           switchUser(tu);
                           setShowSwitchMenu(false);
+                          navigate(getPortalPath(tu));
                         }}
                         className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 transition ${
                           tu.uid === user.uid ? 'bg-blue-50 font-bold text-blue-700' : 'text-slate-700'
