@@ -1,8 +1,7 @@
-import React, { useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Layout } from '../components/Layout';
-import { Stethoscope } from 'lucide-react';
+import { DashboardPage } from './DashboardPage';
 
 const DOCTOR_MAP: Record<string, { id: string; name: string; email: string }> = {
   shirao: { id: 'doc-shirao', name: '白尾医師', email: 'shirao@example.com' },
@@ -18,6 +17,7 @@ export const PortalPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, switchUser, availableTestUsers } = useAuth();
+  const [initialized, setInitialized] = useState(false);
 
   const isAdminPortal = location.pathname.startsWith('/admin');
   const targetDoc = docSlug ? DOCTOR_MAP[docSlug.toLowerCase()] : null;
@@ -27,43 +27,34 @@ export const PortalPage: React.FC = () => {
     if (user?.role === 'doctor') {
       if (isAdminPortal || (targetDoc && targetDoc.id !== user.doctorId)) {
         alert('他の医師または管理者ポータルへのアカウント切り替え権限がありません。');
-        navigate('/', { replace: true });
+        const myDocSlug = user.doctorId?.replace('doc-', '') || 'shirao';
+        navigate(`/doctor/${myDocSlug}`, { replace: true });
         return;
       }
     }
 
     if (isAdminPortal) {
       const adminUser = availableTestUsers.find((u) => u.role === 'admin');
-      if (adminUser) {
+      if (adminUser && user?.uid !== adminUser.uid) {
         switchUser(adminUser);
       }
-      navigate('/', { replace: true });
     } else if (targetDoc) {
       const docUser = availableTestUsers.find((u) => u.doctorId === targetDoc.id);
-      if (docUser) {
+      if (docUser && user?.uid !== docUser.uid) {
         switchUser(docUser);
       }
-      navigate('/', { replace: true });
     }
+    setInitialized(true);
   }, [isAdminPortal, targetDoc, availableTestUsers, switchUser, user, navigate]);
 
-  return (
-    <Layout>
-      <div className="bg-white rounded-xl border border-slate-200 p-12 text-center max-w-lg mx-auto shadow-sm space-y-4">
-        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto">
-          <Stethoscope className="w-6 h-6" />
-        </div>
-        <h1 className="text-xl font-bold text-slate-900">
-          {isAdminPortal
-            ? '👑 管理者ポータルへ移動中...'
-            : targetDoc
-            ? `🩺 ${targetDoc.name} 専用ポータルへ移動中...`
-            : 'ポータル移動中...'}
-        </h1>
-        <p className="text-xs text-slate-500">
-          アクセス権限を確認して統一ダッシュボードへ移動しています。少々お待ちください。
-        </p>
+  if (!initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500 font-bold text-sm">
+        ポータル読込中...
       </div>
-    </Layout>
-  );
+    );
+  }
+
+  // URLのリダイレクト消去を行わずに直接ダッシュボードを表示（リロード時も /admin や /doctor/shirao がアドレスバーに保持される）
+  return <DashboardPage />;
 };
