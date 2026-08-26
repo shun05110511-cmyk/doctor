@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { usePatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
@@ -12,6 +12,13 @@ interface Props {
 export const DoctorSidebar: React.FC<Props> = ({ selectedFilter, onSelectFilter }) => {
   const { patients, doctors } = usePatients();
   const { user } = useAuth();
+
+  // 医師ログイン時は自身のドクターフォルダを自動初期選択してデザイン表示を統一
+  useEffect(() => {
+    if (user?.role === 'doctor' && user.doctorId && selectedFilter === 'all') {
+      onSelectFilter(user.doctorId);
+    }
+  }, [user, selectedFilter, onSelectFilter]);
 
   // ドクター別の統計データ計算
   const getDoctorStats = (docId: string) => {

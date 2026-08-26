@@ -46,7 +46,7 @@ export const PatientListPage: React.FC = () => {
     }
 
     // ドクター別フィルタ
-    if (selectedDocFilter === 'doc-shirao' || selectedDocFilter === 'doc-fukaya' || selectedDocFilter === 'doc-okada') {
+    if (selectedDocFilter !== 'all' && selectedDocFilter !== 'waiting_doctor' && selectedDocFilter !== 'unassigned' && selectedDocFilter !== 'archived') {
       if (p.assignedDoctorId !== selectedDocFilter) return false;
     } else if (selectedDocFilter === 'unassigned') {
       if (p.assignedDoctorId !== 'unassigned') return false;
