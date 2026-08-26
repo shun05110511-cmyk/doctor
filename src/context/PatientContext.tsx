@@ -5,6 +5,7 @@ import {
   fetchDoctors,
   createPatient as createPatientService,
   updatePatient as updatePatientService,
+  deletePatient as deletePatientService,
   addTimelineItem as addTimelineItemService,
   toggleConfirmTimelineItem as toggleConfirmTimelineItemService,
   fetchTimeline as fetchTimelineService,
@@ -21,6 +22,7 @@ interface PatientContextType {
   updatePatientDoctor: (patientId: string, doctorId: string, doctorName: string) => Promise<void>;
   updatePatientStatus: (patientId: string, status: PatientStatus) => Promise<void>;
   archivePatient: (patientId: string) => Promise<void>;
+  deletePatient: (patientId: string) => Promise<void>;
   getTimeline: (patientId: string) => Promise<TimelineItem[]>;
   addTimelineItem: (
     patientId: string,
@@ -91,6 +93,11 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ child
     await loadData();
   };
 
+  const deletePatient = async (patientId: string) => {
+    await deletePatientService(patientId);
+    await loadData();
+  };
+
   const getTimeline = async (patientId: string) => {
     return await fetchTimelineService(patientId);
   };
@@ -124,6 +131,7 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updatePatientDoctor,
         updatePatientStatus,
         archivePatient,
+        deletePatient,
         getTimeline,
         addTimelineItem,
         toggleConfirm,

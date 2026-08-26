@@ -19,6 +19,7 @@ import {
   FileText,
   UserCheck,
   Archive,
+  Trash2,
   MessageSquare,
 } from 'lucide-react';
 import type { Patient, TimelineItem, TimelineItemType, PriorityLevel, PatientStatus } from '../types';
@@ -44,6 +45,7 @@ export const PatientDetailPage: React.FC = () => {
     updatePatientDoctor,
     updatePatientStatus,
     archivePatient,
+    deletePatient,
     getTimeline,
     addTimelineItem,
     toggleConfirm,
@@ -128,6 +130,18 @@ export const PatientDetailPage: React.FC = () => {
     }
   };
 
+  // 完全削除処理（管理者限定）
+  const handleDelete = async () => {
+    if (
+      window.confirm(
+        `【警告】患者「${patient.displayName} (${patient.patientCode})」をデータベースから完全削除します。\nこの操作は取り消せません。本当に削除しますか？`
+      )
+    ) {
+      await deletePatient(patient.id);
+      navigate('/patients');
+    }
+  };
+
   // 新規投稿送信
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,13 +200,23 @@ export const PatientDetailPage: React.FC = () => {
 
           <div className="flex items-center gap-2">
             {user?.role === 'admin' && (
-              <button
-                onClick={handleArchive}
-                className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 border border-slate-300 px-3 py-1.5 rounded-lg transition"
-              >
-                <Archive className="w-3.5 h-3.5" />
-                <span>アーカイブ</span>
-              </button>
+              <>
+                <button
+                  onClick={handleArchive}
+                  className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-700 border border-slate-300 px-3 py-1.5 rounded-lg transition"
+                >
+                  <Archive className="w-3.5 h-3.5" />
+                  <span>アーカイブ</span>
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="inline-flex items-center gap-1 text-xs bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 border border-red-200 px-3 py-1.5 rounded-lg font-bold transition shadow-sm"
+                  title="データベースから完全削除"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>完全削除</span>
+                </button>
+              </>
             )}
             {user?.role !== 'doctor' && (
               <button

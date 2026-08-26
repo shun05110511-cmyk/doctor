@@ -5,6 +5,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
@@ -422,3 +423,31 @@ export async function toggleConfirmTimelineItem(
     return currentItems;
   }
 }
+
+export async function deletePatient(patientId: string): Promise<void> {
+  if (!isFirebaseConfigured) {
+    const list = getLocalPatients();
+    const updated = list.filter((p) => p.id !== patientId);
+    saveLocalPatients(updated);
+
+    const timelinesMap = getLocalTimelines();
+    delete timelinesMap[patientId];
+    saveLocalTimelines(timelinesMap);
+    return;
+  }
+
+  try {
+    const docRef = doc(db, 'patients', patientId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    console.warn('Firestore deletePatient fallback:', error);
+    const list = getLocalPatients();
+    const updated = list.filter((p) => p.id !== patientId);
+    saveLocalPatients(updated);
+
+    const timelinesMap = getLocalTimelines();
+    delete timelinesMap[patientId];
+    saveLocalTimelines(timelinesMap);
+  }
+}
+
