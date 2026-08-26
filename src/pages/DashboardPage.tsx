@@ -158,106 +158,108 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ドクターごとの患者ファイル集計テーブル (追加要件) */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <Stethoscope className="w-4 h-4 text-blue-600" />
-              <span>ドクター別患者ファイル状況</span>
-            </h2>
-            <span className="text-xs text-slate-500">行をクリックすると該当ドクターの患者一覧へ移動します</span>
+        {/* ドクターごとの患者ファイル集計テーブル (管理者権限のみ表示) */}
+        {user?.role === 'admin' && (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Stethoscope className="w-4 h-4 text-blue-600" />
+                <span>ドクター別患者ファイル状況</span>
+              </h2>
+              <span className="text-xs text-slate-500">行をクリックすると該当ドクターの患者一覧へ移動します</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200">
+                  <tr>
+                    <th className="py-3 px-4">担当ドクター</th>
+                    <th className="py-3 px-4 text-center">担当患者数</th>
+                    <th className="py-3 px-4 text-center">回答待ち</th>
+                    <th className="py-3 px-4 text-center">確認待ち</th>
+                    <th className="py-3 px-4 text-center">対応中</th>
+                    <th className="py-3 px-4 text-center">対応完了</th>
+                    <th className="py-3 px-4 text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {doctors.map((doc) => {
+                    const docPts = activePatients.filter((p) => p.assignedDoctorId === doc.id);
+                    const wDoc = docPts.filter((p) => p.status === 'waiting_doctor').length;
+                    const wStaff = docPts.filter((p) => p.status === 'waiting_staff').length;
+                    const inProg = docPts.filter((p) => p.status === 'in_progress').length;
+                    const comp = docPts.filter((p) => p.status === 'completed').length;
+
+                    return (
+                      <tr
+                        key={doc.id}
+                        onClick={() => navigate(`/patients?filter=${doc.id}`)}
+                        className="hover:bg-blue-50/50 cursor-pointer transition"
+                      >
+                        <td className="py-3 px-4 font-bold text-slate-800 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                          {doc.displayName}
+                        </td>
+                        <td className="py-3 px-4 text-center font-bold text-slate-900">{docPts.length}名</td>
+                        <td className="py-3 px-4 text-center">
+                          {wDoc > 0 ? (
+                            <span className="inline-block bg-amber-500 text-white font-bold px-2 py-0.5 rounded-full text-xs animate-pulse">
+                              {wDoc}件
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">0</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {wStaff > 0 ? (
+                            <span className="inline-block bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-full text-xs">
+                              {wStaff}件
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">0</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-center font-medium text-slate-700">{inProg}件</td>
+                        <td className="py-3 px-4 text-center font-medium text-slate-500">{comp}件</td>
+                        <td className="py-3 px-4 text-right">
+                          <ChevronRight className="w-4 h-4 text-slate-400 inline" />
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {/* 担当医未設定行 */}
+                  {(() => {
+                    const unassignedPts = activePatients.filter((p) => p.assignedDoctorId === 'unassigned');
+                    const wDoc = unassignedPts.filter((p) => p.status === 'waiting_doctor').length;
+                    const wStaff = unassignedPts.filter((p) => p.status === 'waiting_staff').length;
+                    const inProg = unassignedPts.filter((p) => p.status === 'in_progress').length;
+                    const comp = unassignedPts.filter((p) => p.status === 'completed').length;
+
+                    return (
+                      <tr
+                        onClick={() => navigate('/patients?filter=unassigned')}
+                        className="hover:bg-slate-100 cursor-pointer transition text-slate-500 bg-slate-50/50"
+                      >
+                        <td className="py-3 px-4 font-bold flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                          担当医未設定
+                        </td>
+                        <td className="py-3 px-4 text-center font-bold">{unassignedPts.length}名</td>
+                        <td className="py-3 px-4 text-center">{wDoc > 0 ? `${wDoc}件` : '0'}</td>
+                        <td className="py-3 px-4 text-center">{wStaff > 0 ? `${wStaff}件` : '0'}</td>
+                        <td className="py-3 px-4 text-center">{inProg}件</td>
+                        <td className="py-3 px-4 text-center">{comp}件</td>
+                        <td className="py-3 px-4 text-right">
+                          <ChevronRight className="w-4 h-4 text-slate-400 inline" />
+                        </td>
+                      </tr>
+                    );
+                  })()}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-[11px] border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">担当ドクター</th>
-                  <th className="py-3 px-4 text-center">担当患者数</th>
-                  <th className="py-3 px-4 text-center">回答待ち</th>
-                  <th className="py-3 px-4 text-center">確認待ち</th>
-                  <th className="py-3 px-4 text-center">対応中</th>
-                  <th className="py-3 px-4 text-center">対応完了</th>
-                  <th className="py-3 px-4 text-right">操作</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {doctors.map((doc) => {
-                  const docPts = activePatients.filter((p) => p.assignedDoctorId === doc.id);
-                  const wDoc = docPts.filter((p) => p.status === 'waiting_doctor').length;
-                  const wStaff = docPts.filter((p) => p.status === 'waiting_staff').length;
-                  const inProg = docPts.filter((p) => p.status === 'in_progress').length;
-                  const comp = docPts.filter((p) => p.status === 'completed').length;
-
-                  return (
-                    <tr
-                      key={doc.id}
-                      onClick={() => navigate(`/patients?filter=${doc.id}`)}
-                      className="hover:bg-blue-50/50 cursor-pointer transition"
-                    >
-                      <td className="py-3 px-4 font-bold text-slate-800 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                        {doc.displayName}
-                      </td>
-                      <td className="py-3 px-4 text-center font-bold text-slate-900">{docPts.length}名</td>
-                      <td className="py-3 px-4 text-center">
-                        {wDoc > 0 ? (
-                          <span className="inline-block bg-amber-500 text-white font-bold px-2 py-0.5 rounded-full text-xs animate-pulse">
-                            {wDoc}件
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">0</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {wStaff > 0 ? (
-                          <span className="inline-block bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-full text-xs">
-                            {wStaff}件
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">0</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-center font-medium text-slate-700">{inProg}件</td>
-                      <td className="py-3 px-4 text-center font-medium text-slate-500">{comp}件</td>
-                      <td className="py-3 px-4 text-right">
-                        <ChevronRight className="w-4 h-4 text-slate-400 inline" />
-                      </td>
-                    </tr>
-                  );
-                })}
-
-                {/* 担当医未設定行 */}
-                {(() => {
-                  const unassignedPts = activePatients.filter((p) => p.assignedDoctorId === 'unassigned');
-                  const wDoc = unassignedPts.filter((p) => p.status === 'waiting_doctor').length;
-                  const wStaff = unassignedPts.filter((p) => p.status === 'waiting_staff').length;
-                  const inProg = unassignedPts.filter((p) => p.status === 'in_progress').length;
-                  const comp = unassignedPts.filter((p) => p.status === 'completed').length;
-
-                  return (
-                    <tr
-                      onClick={() => navigate('/patients?filter=unassigned')}
-                      className="hover:bg-slate-100 cursor-pointer transition text-slate-500 bg-slate-50/50"
-                    >
-                      <td className="py-3 px-4 font-bold flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-                        担当医未設定
-                      </td>
-                      <td className="py-3 px-4 text-center font-bold">{unassignedPts.length}名</td>
-                      <td className="py-3 px-4 text-center">{wDoc > 0 ? `${wDoc}件` : '0'}</td>
-                      <td className="py-3 px-4 text-center">{wStaff > 0 ? `${wStaff}件` : '0'}</td>
-                      <td className="py-3 px-4 text-center">{inProg}件</td>
-                      <td className="py-3 px-4 text-center">{comp}件</td>
-                      <td className="py-3 px-4 text-right">
-                        <ChevronRight className="w-4 h-4 text-slate-400 inline" />
-                      </td>
-                    </tr>
-                  );
-                })()}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        )}
 
         {/* 下部 2カラム: 最近更新された患者 & 最新投稿 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
