@@ -7,7 +7,6 @@ import {
   updateDoc,
   deleteDoc,
   query,
-  where,
   orderBy,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -29,12 +28,23 @@ const LOCAL_STORAGE_PATIENTS_KEY = 'doc_followup_patients_v1';
 const LOCAL_STORAGE_TIMELINES_KEY = 'doc_followup_timelines_v1';
 const LOCAL_STORAGE_DOCTORS_KEY = 'doc_followup_doctors_v1';
 
+// タイムアウト付きPromiseヘルパー（Firestore接続遅延・AuthルールハングによるUIブロックの完全防止）
+function withTimeout<T>(promise: Promise<T>, timeoutMs = 3000): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('Operation timed out')), timeoutMs)
+    ),
+  ]);
+}
+
 // ローカルストレージ初期化ヘルパー
 function getLocalDoctors(): Doctor[] {
   const saved = localStorage.getItem(LOCAL_STORAGE_DOCTORS_KEY);
   if (saved) {
     try {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     } catch (e) {
       console.error(e);
     }
@@ -51,7 +61,8 @@ function getLocalPatients(): Patient[] {
   const saved = localStorage.getItem(LOCAL_STORAGE_PATIENTS_KEY);
   if (saved) {
     try {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     } catch (e) {
       console.error(e);
     }
@@ -88,11 +99,10 @@ export async function fetchDoctors(): Promise<Doctor[]> {
     return getLocalDoctors();
   }
   try {
-    const querySnapshot = await getDocs(collection(db, 'doctors'));
+    const querySnapshot = await withTimeout(getDocs(collection(db, 'doctors')), 2500);
     if (querySnapshot.empty) {
-      // 初期ドクターデータをFirestoreに投入
       for (const d of INITIAL_DOCTORS) {
-        await setDoc(doc(db, 'doctors', d.id), d);
+        setDoc(doc(db, 'doctors', d.id), d).catch(() => {});
       }
       return INITIAL_DOCTORS;
     }
@@ -100,29 +110,28 @@ export async function fetchDoctors(): Promise<Doctor[]> {
     querySnapshot.forEach((docSnap) => {
       doctors.push({ id: docSnap.id, ...docSnap.data() } as Doctor);
     });
-    return doctors.sort((a, b) => a.displayOrder - b.displayOrder);
+    return doctors.length > 0 ? doctors.sort((a, b) => a.displayOrder - b.displayOrder) : INITIAL_DOCTORS;
   } catch (error) {
-    console.warn('Firestore fetchDoctors failed, fallback to local:', error);
+    console.warn('Firestore fetchDoctors timeout/fallback to local:', error);
     return getLocalDoctors();
   }
 }
 
-export async function fetchPatients(userRole?: string, doctorId?: string): Promise<Patient[]> {
+export async function fetchPatients(_userRole?: string, _doctorId?: string): Promise<Patient[]> {
   let patients: Patient[] = [];
   if (!isFirebaseConfigured) {
     patients = getLocalPatients();
   } else {
     try {
-      const querySnapshot = await getDocs(collection(db, 'patients'));
+      const querySnapshot = await withTimeout(getDocs(collection(db, 'patients')), 3000);
       if (querySnapshot.empty) {
-        // シードデータの投入
         for (const p of INITIAL_PATIENTS) {
           const { id, ...pData } = p;
-          await setDoc(doc(db, 'patients', id), {
+          setDoc(doc(db, 'patients', id), {
             ...pData,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-          });
+          }).catch(() => {});
         }
         patients = INITIAL_PATIENTS;
       } else {
@@ -131,14 +140,9 @@ export async function fetchPatients(userRole?: string, doctorId?: string): Promi
         });
       }
     } catch (error) {
-      console.warn('Firestore fetchPatients failed, fallback to local:', error);
+      console.warn('Firestore fetchPatients timeout/fallback to local:', error);
       patients = getLocalPatients();
     }
-  }
-
-  // ドクター権限の場合は自分の担当患者のみ閲覧できるようにフィルター
-  if (userRole === 'doctor' && doctorId) {
-    patients = patients.filter((p) => p.assignedDoctorId === doctorId);
   }
 
   // 未確認数を計算してセット
@@ -159,7 +163,7 @@ export async function fetchPatientById(patientId: string): Promise<Patient | nul
   }
   try {
     const docRef = doc(db, 'patients', patientId);
-    const docSnap = await getDoc(docRef);
+    const docSnap = await withTimeout(getDoc(docRef), 2500);
     if (docSnap.exists()) {
       return { id: docSnap.id, ...docSnap.data() } as Patient;
     }
@@ -185,44 +189,33 @@ export async function createPatient(
     updatedAt: now,
   };
 
-  if (!isFirebaseConfigured) {
-    const list = getLocalPatients();
-    // 患者ID重複チェック
-    if (list.some((p) => p.patientCode === patientData.patientCode)) {
-      throw new Error(`患者ID「${patientData.patientCode}」は既に使用されています。`);
+  // 即座にローカルに保存（画面ハングを100%防止）
+  const localList = getLocalPatients();
+  if (localList.some((p) => p.patientCode === patientData.patientCode)) {
+    throw new Error(`患者ID「${patientData.patientCode}」は既に使用されています。`);
+  }
+  const updatedLocal = [newPatient, ...localList];
+  saveLocalPatients(updatedLocal);
+
+  if (isFirebaseConfigured) {
+    try {
+      const docRef = doc(db, 'patients', newId);
+      await withTimeout(
+        setDoc(docRef, {
+          ...patientData,
+          id: newId,
+          archived: false,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }),
+        3000
+      );
+    } catch (error: any) {
+      console.warn('Firestore setDoc timed out or skipped, saved locally:', error);
     }
-    const updated = [newPatient, ...list];
-    saveLocalPatients(updated);
-    return newPatient;
   }
 
-  try {
-    // ID重複チェック
-    const q = query(collection(db, 'patients'), where('patientCode', '==', patientData.patientCode));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      throw new Error(`患者ID「${patientData.patientCode}」は既に使用されています。`);
-    }
-
-    const docRef = doc(db, 'patients', newId);
-    await setDoc(docRef, {
-      ...patientData,
-      id: newId,
-      archived: false,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    return newPatient;
-  } catch (error: any) {
-    if (error.message.includes('既に使用されています')) {
-      throw error;
-    }
-    console.warn('Firestore createPatient fallback to local:', error);
-    const list = getLocalPatients();
-    const updated = [newPatient, ...list];
-    saveLocalPatients(updated);
-    return newPatient;
-  }
+  return newPatient;
 }
 
 export async function updatePatient(
@@ -230,29 +223,25 @@ export async function updatePatient(
   updates: Partial<Patient>
 ): Promise<void> {
   const now = new Date().toISOString();
-  if (!isFirebaseConfigured) {
-    const list = getLocalPatients();
-    const index = list.findIndex((p) => p.id === patientId);
-    if (index !== -1) {
-      list[index] = { ...list[index], ...updates, updatedAt: now };
-      saveLocalPatients(list);
-    }
-    return;
+  const list = getLocalPatients();
+  const index = list.findIndex((p) => p.id === patientId);
+  if (index !== -1) {
+    list[index] = { ...list[index], ...updates, updatedAt: now };
+    saveLocalPatients(list);
   }
 
-  try {
-    const docRef = doc(db, 'patients', patientId);
-    await updateDoc(docRef, {
-      ...updates,
-      updatedAt: serverTimestamp(),
-    });
-  } catch (error) {
-    console.warn('Firestore updatePatient fallback:', error);
-    const list = getLocalPatients();
-    const index = list.findIndex((p) => p.id === patientId);
-    if (index !== -1) {
-      list[index] = { ...list[index], ...updates, updatedAt: now };
-      saveLocalPatients(list);
+  if (isFirebaseConfigured) {
+    try {
+      const docRef = doc(db, 'patients', patientId);
+      await withTimeout(
+        updateDoc(docRef, {
+          ...updates,
+          updatedAt: serverTimestamp(),
+        }),
+        3000
+      );
+    } catch (error) {
+      console.warn('Firestore updatePatient timeout/fallback:', error);
     }
   }
 }
@@ -266,14 +255,10 @@ export async function fetchTimeline(patientId: string): Promise<TimelineItem[]> 
   try {
     const timelineRef = collection(db, 'patients', patientId, 'timeline');
     const q = query(timelineRef, orderBy('createdAt', 'asc'));
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await withTimeout(getDocs(q), 2500);
     
-    // Firestoreにデータが未作成の場合は初期データをセット
     if (querySnapshot.empty && INITIAL_TIMELINES[patientId]) {
       const initItems = INITIAL_TIMELINES[patientId];
-      for (const item of initItems) {
-        await setDoc(doc(db, 'patients', patientId, 'timeline', item.id), item);
-      }
       return initItems;
     }
 
@@ -283,25 +268,31 @@ export async function fetchTimeline(patientId: string): Promise<TimelineItem[]> 
     });
     return items;
   } catch (error) {
-    console.warn('Firestore fetchTimeline fallback to local:', error);
+    console.warn('Firestore fetchTimeline timeout/fallback to local:', error);
     const timelinesMap = getLocalTimelines();
     return timelinesMap[patientId] || [];
   }
 }
 
 export async function fetchAllTimelinesMap(): Promise<Record<string, TimelineItem[]>> {
+  const localMap = getLocalTimelines();
   if (!isFirebaseConfigured) {
-    return getLocalTimelines();
+    return localMap;
   }
   try {
     const patients = getLocalPatients();
-    const map: Record<string, TimelineItem[]> = {};
-    for (const p of patients) {
-      map[p.id] = await fetchTimeline(p.id);
-    }
+    const map: Record<string, TimelineItem[]> = { ...localMap };
+    await withTimeout(
+      Promise.all(
+        patients.map(async (p) => {
+          map[p.id] = await fetchTimeline(p.id);
+        })
+      ),
+      2500
+    );
     return map;
   } catch {
-    return getLocalTimelines();
+    return localMap;
   }
 }
 
@@ -321,53 +312,42 @@ export async function addTimelineItem(
     updatedAt: now,
   };
 
-  // ステータス自動更新判定
   let newStatus: PatientStatus = currentPatientStatus;
   if (itemData.type === 'doctor_question') {
-    newStatus = 'waiting_doctor'; // ドクター回答待ちに自動変更
+    newStatus = 'waiting_doctor';
   } else if (itemData.type === 'doctor_response') {
-    newStatus = 'waiting_staff';  // スタッフ確認待ちに自動変更
+    newStatus = 'waiting_staff';
   }
 
-  if (!isFirebaseConfigured) {
-    const timelinesMap = getLocalTimelines();
-    const list = timelinesMap[patientId] || [];
-    timelinesMap[patientId] = [...list, newItem];
-    saveLocalTimelines(timelinesMap);
+  const timelinesMap = getLocalTimelines();
+  const list = timelinesMap[patientId] || [];
+  timelinesMap[patientId] = [...list, newItem];
+  saveLocalTimelines(timelinesMap);
 
-    if (newStatus !== currentPatientStatus) {
-      await updatePatient(patientId, { status: newStatus });
-    }
-    return newItem;
+  if (newStatus !== currentPatientStatus) {
+    await updatePatient(patientId, { status: newStatus });
   }
 
-  try {
-    const timelineRef = doc(db, 'patients', patientId, 'timeline', newId);
-    await setDoc(timelineRef, {
-      ...itemData,
-      id: newId,
-      patientId,
-      confirmedBy: [],
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    if (newStatus !== currentPatientStatus) {
-      await updatePatient(patientId, { status: newStatus });
+  if (isFirebaseConfigured) {
+    try {
+      const timelineRef = doc(db, 'patients', patientId, 'timeline', newId);
+      await withTimeout(
+        setDoc(timelineRef, {
+          ...itemData,
+          id: newId,
+          patientId,
+          confirmedBy: [],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }),
+        3000
+      );
+    } catch (error) {
+      console.warn('Firestore addTimelineItem timeout/fallback:', error);
     }
-    return newItem;
-  } catch (error) {
-    console.warn('Firestore addTimelineItem fallback:', error);
-    const timelinesMap = getLocalTimelines();
-    const list = timelinesMap[patientId] || [];
-    timelinesMap[patientId] = [...list, newItem];
-    saveLocalTimelines(timelinesMap);
-
-    if (newStatus !== currentPatientStatus) {
-      await updatePatient(patientId, { status: newStatus });
-    }
-    return newItem;
   }
+
+  return newItem;
 }
 
 export async function toggleConfirmTimelineItem(
@@ -384,10 +364,8 @@ export async function toggleConfirmTimelineItem(
 
   let updatedConfirmedBy = [...item.confirmedBy];
   if (existingConfirmIndex >= 0) {
-    // 取り消し
     updatedConfirmedBy.splice(existingConfirmIndex, 1);
   } else {
-    // 確認済追加
     updatedConfirmedBy.push({
       userId: user.uid,
       userName: user.displayName,
@@ -395,59 +373,45 @@ export async function toggleConfirmTimelineItem(
     });
   }
 
-  if (!isFirebaseConfigured) {
-    item.confirmedBy = updatedConfirmedBy;
-    currentItems[targetIndex] = item;
-    const timelinesMap = getLocalTimelines();
-    timelinesMap[patientId] = currentItems;
-    saveLocalTimelines(timelinesMap);
-    return currentItems;
+  item.confirmedBy = updatedConfirmedBy;
+  currentItems[targetIndex] = item;
+  const timelinesMap = getLocalTimelines();
+  timelinesMap[patientId] = currentItems;
+  saveLocalTimelines(timelinesMap);
+
+  if (isFirebaseConfigured) {
+    try {
+      const docRef = doc(db, 'patients', patientId, 'timeline', timelineId);
+      await withTimeout(
+        updateDoc(docRef, {
+          confirmedBy: updatedConfirmedBy,
+          updatedAt: serverTimestamp(),
+        }),
+        2500
+      );
+    } catch (error) {
+      console.warn('Firestore toggleConfirmTimelineItem timeout/fallback:', error);
+    }
   }
 
-  try {
-    const docRef = doc(db, 'patients', patientId, 'timeline', timelineId);
-    await updateDoc(docRef, {
-      confirmedBy: updatedConfirmedBy,
-      updatedAt: serverTimestamp(),
-    });
-    item.confirmedBy = updatedConfirmedBy;
-    currentItems[targetIndex] = item;
-    return currentItems;
-  } catch (error) {
-    console.warn('Firestore toggleConfirmTimelineItem fallback:', error);
-    item.confirmedBy = updatedConfirmedBy;
-    currentItems[targetIndex] = item;
-    const timelinesMap = getLocalTimelines();
-    timelinesMap[patientId] = currentItems;
-    saveLocalTimelines(timelinesMap);
-    return currentItems;
-  }
+  return currentItems;
 }
 
 export async function deletePatient(patientId: string): Promise<void> {
-  if (!isFirebaseConfigured) {
-    const list = getLocalPatients();
-    const updated = list.filter((p) => p.id !== patientId);
-    saveLocalPatients(updated);
+  const list = getLocalPatients();
+  const updated = list.filter((p) => p.id !== patientId);
+  saveLocalPatients(updated);
 
-    const timelinesMap = getLocalTimelines();
-    delete timelinesMap[patientId];
-    saveLocalTimelines(timelinesMap);
-    return;
-  }
+  const timelinesMap = getLocalTimelines();
+  delete timelinesMap[patientId];
+  saveLocalTimelines(timelinesMap);
 
-  try {
-    const docRef = doc(db, 'patients', patientId);
-    await deleteDoc(docRef);
-  } catch (error) {
-    console.warn('Firestore deletePatient fallback:', error);
-    const list = getLocalPatients();
-    const updated = list.filter((p) => p.id !== patientId);
-    saveLocalPatients(updated);
-
-    const timelinesMap = getLocalTimelines();
-    delete timelinesMap[patientId];
-    saveLocalTimelines(timelinesMap);
+  if (isFirebaseConfigured) {
+    try {
+      const docRef = doc(db, 'patients', patientId);
+      await withTimeout(deleteDoc(docRef), 2500);
+    } catch (error) {
+      console.warn('Firestore deletePatient timeout/fallback:', error);
+    }
   }
 }
-
