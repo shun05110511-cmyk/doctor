@@ -45,46 +45,48 @@ export const Navbar: React.FC = () => {
 
           {/* ナビゲーション & ユーザー情報 */}
           <div className="flex items-center space-x-3 sm:space-x-4">
-            {/* 試作版・動作確認用 テストユーザー迅速切替 */}
-            <div className="relative">
-              <button
-                onClick={() => setShowSwitchMenu(!showSwitchMenu)}
-                className="flex items-center gap-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-md border border-slate-300 transition"
-                title="表示権限を切り替えてテストできます"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-                <span className="hidden sm:inline">アカウント切り替え</span>
-                <ChevronDown className="w-3 h-3 text-slate-500" />
-              </button>
+            {/* 試作版・動作確認用 テストユーザー迅速切替 (管理者のみ利用可能) */}
+            {user.role === 'admin' && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowSwitchMenu(!showSwitchMenu)}
+                  className="flex items-center gap-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-md border border-slate-300 transition"
+                  title="管理者権限によるアカウント切り替え"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="hidden sm:inline">アカウント切り替え</span>
+                  <ChevronDown className="w-3 h-3 text-slate-500" />
+                </button>
 
-              {showSwitchMenu && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50">
-                  <div className="px-3 py-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                    テスト用アカウント選択
+                {showSwitchMenu && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50">
+                    <div className="px-3 py-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                      管理者用アカウント切替メニュー
+                    </div>
+                    {availableTestUsers.map((tu) => (
+                      <button
+                        key={tu.uid}
+                        onClick={() => {
+                          switchUser(tu);
+                          setShowSwitchMenu(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 transition ${
+                          tu.uid === user.uid ? 'bg-blue-50 font-bold text-blue-700' : 'text-slate-700'
+                        }`}
+                      >
+                        <div>
+                          <span className="block font-medium">{tu.displayName}</span>
+                          <span className="text-[10px] text-slate-400">{tu.email}</span>
+                        </div>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] border ${ROLE_LABELS[tu.role].bg}`}>
+                          {ROLE_LABELS[tu.role].label}
+                        </span>
+                      </button>
+                    ))}
                   </div>
-                  {availableTestUsers.map((tu) => (
-                    <button
-                      key={tu.uid}
-                      onClick={() => {
-                        switchUser(tu);
-                        setShowSwitchMenu(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 transition ${
-                        tu.uid === user.uid ? 'bg-blue-50 font-bold text-blue-700' : 'text-slate-700'
-                      }`}
-                    >
-                      <div>
-                        <span className="block font-medium">{tu.displayName}</span>
-                        <span className="text-[10px] text-slate-400">{tu.email}</span>
-                      </div>
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] border ${ROLE_LABELS[tu.role].bg}`}>
-                        {ROLE_LABELS[tu.role].label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {/* ユーザープロファイル */}
             <div className="hidden md:flex items-center space-x-2 border-l border-slate-200 pl-4">

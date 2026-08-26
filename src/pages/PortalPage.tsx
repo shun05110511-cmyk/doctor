@@ -17,12 +17,21 @@ export const PortalPage: React.FC = () => {
   const { docSlug } = useParams<{ docSlug?: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const { switchUser, availableTestUsers } = useAuth();
+  const { user, switchUser, availableTestUsers } = useAuth();
 
   const isAdminPortal = location.pathname.startsWith('/admin');
   const targetDoc = docSlug ? DOCTOR_MAP[docSlug.toLowerCase()] : null;
 
   useEffect(() => {
+    // ログイン中のドクターアカウントが他の医師や管理者ポータルに切り替えるのを禁止
+    if (user?.role === 'doctor') {
+      if (isAdminPortal || (targetDoc && targetDoc.id !== user.doctorId)) {
+        alert('他の医師または管理者ポータルへのアカウント切り替え権限がありません。');
+        navigate(`/patients?filter=${user.doctorId}`, { replace: true });
+        return;
+      }
+    }
+
     if (isAdminPortal) {
       const adminUser = availableTestUsers.find((u) => u.role === 'admin');
       if (adminUser) {
@@ -36,7 +45,7 @@ export const PortalPage: React.FC = () => {
         navigate(`/patients?filter=${targetDoc.id}`, { replace: true });
       }
     }
-  }, [isAdminPortal, targetDoc, availableTestUsers, switchUser, navigate]);
+  }, [isAdminPortal, targetDoc, availableTestUsers, switchUser, user, navigate]);
 
   return (
     <Layout>
@@ -52,7 +61,7 @@ export const PortalPage: React.FC = () => {
             : 'ポータル移動中...'}
         </h1>
         <p className="text-xs text-slate-500">
-          専用のアカウント設定に切り替えて移動しています。少々お待ちください。
+          アクセス権限を確認して専用ポータルへ移動しています。少々お待ちください。
         </p>
       </div>
     </Layout>
