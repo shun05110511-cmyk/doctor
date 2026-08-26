@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { Patient, PatientStatus } from '../types';
 import { usePatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
+import { INITIAL_DOCTORS } from '../services/seedData';
 import { X, UserPlus, Save, AlertCircle } from 'lucide-react';
 import { STATUS_CONFIG } from './StatusBadge';
 
@@ -14,6 +15,8 @@ interface Props {
 export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) => {
   const { createPatient, updatePatient, doctors } = usePatients();
   const { user } = useAuth();
+
+  const availableDoctors = (doctors && doctors.length > 0) ? doctors : INITIAL_DOCTORS;
 
   const [patientCode, setPatientCode] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -57,7 +60,7 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
       setDoctorAssessment('');
       setDoctorAdvice('');
       setFollowUpPlan('');
-      const defaultDoc = (user?.role === 'doctor' && user?.doctorId) ? user.doctorId : (doctors[0]?.id || 'doc-shirao');
+      const defaultDoc = (user?.role === 'doctor' && user?.doctorId) ? user.doctorId : (availableDoctors[0]?.id || 'doc-shirao');
       setAssignedDoctorId(defaultDoc);
       setStatus('new');
       setNotes('');
@@ -216,7 +219,7 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
                 onChange={(e) => setAssignedDoctorId(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-semibold text-blue-900 cursor-pointer"
               >
-                {doctors.map((d) => (
+                {availableDoctors.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.displayName}
                   </option>

@@ -10,6 +10,7 @@ import {
   toggleConfirmTimelineItem as toggleConfirmTimelineItemService,
   fetchTimeline as fetchTimelineService,
 } from '../services/patientService';
+import { INITIAL_DOCTORS } from '../services/seedData';
 import { useAuth } from './AuthContext';
 
 interface PatientContextType {
@@ -37,7 +38,7 @@ const PatientContext = createContext<PatientContextType | undefined>(undefined);
 export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>(INITIAL_DOCTORS);
   const [loading, setLoading] = useState<boolean>(true);
 
   const loadData = useCallback(async () => {
