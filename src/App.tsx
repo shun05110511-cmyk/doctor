@@ -52,8 +52,22 @@ export const App: React.FC = () => {
         <PatientProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/admin" element={<PortalPage />} />
-            <Route path="/doctor/:docSlug" element={<PortalPage />} />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <PortalPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/doctor/:docSlug"
+              element={
+                <ProtectedRoute>
+                  <PortalPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/" element={<RootRedirect />} />
             <Route
               path="/patients"

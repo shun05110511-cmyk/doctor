@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Stethoscope, Lock, Mail, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
-import type { UserRole } from '../types';
+import { Stethoscope, Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { login, switchUser, availableTestUsers } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -25,17 +24,6 @@ export const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickLogin = (user: (typeof availableTestUsers)[0]) => {
-    switchUser(user);
-    navigate('/');
-  };
-
-  const ROLE_CONFIG: Record<UserRole, { label: string; badge: string }> = {
-    admin: { label: '施設管理者', badge: 'bg-red-100 text-red-800 border-red-200' },
-    staff: { label: '医療スタッフ', badge: 'bg-blue-100 text-blue-800 border-blue-200' },
-    doctor: { label: '担当ドクター', badge: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
   };
 
   return (
@@ -64,7 +52,7 @@ export const LoginPage: React.FC = () => {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                メールアドレス
+                メールアドレス (ID)
               </label>
               <div className="relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -74,7 +62,7 @@ export const LoginPage: React.FC = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="scc@nittai.ac.jp"
+                  placeholder="ID (メールアドレス) を入力"
                   className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
@@ -93,7 +81,7 @@ export const LoginPage: React.FC = () => {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="パスワードを入力"
                   className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
@@ -109,54 +97,10 @@ export const LoginPage: React.FC = () => {
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* 公式アカウント一覧＆ワンクリックテストログイン */}
-          <div className="mt-8 pt-6 border-t border-slate-200">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                <ShieldCheck className="w-4 h-4 text-blue-600" />
-                <span>公式アカウント一覧 (ID & パスワード)</span>
-              </div>
-              <span className="text-[10px] text-slate-400">クリックで直接ログイン可</span>
-            </div>
-            <div className="space-y-2">
-              {[
-                { email: 'scc@nittai.ac.jp', pass: 'scc62625353' },
-                { email: 'shirao@nittai.ac.jp', pass: 'shirao1000' },
-                { email: 'fukaya@nittai.ac.jp', pass: 'fukaya2000' },
-                { email: 'okada@nittai.ac.jp', pass: 'okada3000' },
-              ].map((acc) => {
-                const u = availableTestUsers.find((tu) => tu.email === acc.email);
-                if (!u) return null;
-                return (
-                  <button
-                    key={u.uid}
-                    onClick={() => {
-                      setEmail(acc.email);
-                      setPassword(acc.pass);
-                      handleQuickLogin(u);
-                    }}
-                    className="w-full flex items-center justify-between p-2.5 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition text-left group"
-                  >
-                    <div>
-                      <div className="text-xs font-bold text-slate-800 group-hover:text-blue-700 flex items-center gap-2">
-                        <span>{u.displayName}</span>
-                        <span className="text-[10px] text-slate-400 font-mono">パスワード: {acc.pass}</span>
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-mono">ID: {u.email}</div>
-                    </div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded border font-semibold ${ROLE_CONFIG[u.role].badge}`}>
-                      {ROLE_CONFIG[u.role].label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
 
         <p className="mt-4 text-center text-xs text-slate-500">
-          ※第一段階試作版のため実在する患者個人情報は入力しないでください。
+          ※関係者専用システムです。ご登録済みのID・パスワードでログインしてください。
         </p>
       </div>
     </div>

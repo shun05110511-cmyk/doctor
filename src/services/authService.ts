@@ -116,9 +116,7 @@ export function getCurrentLocalUser(): UserProfile | null {
       console.error(e);
     }
   }
-  const defaultUser = INITIAL_USERS[0];
-  localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(defaultUser));
-  return defaultUser;
+  return null;
 }
 
 export function setQuickSwitchUser(user: UserProfile): void {
