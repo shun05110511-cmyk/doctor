@@ -21,6 +21,7 @@ import {
   Archive,
   Trash2,
   MessageSquare,
+  RotateCcw,
 } from 'lucide-react';
 import type { Patient, TimelineItem, TimelineItemType, PriorityLevel, PatientStatus } from '../types';
 
@@ -117,6 +118,59 @@ export const PatientDetailPage: React.FC = () => {
     setIsChangingDoctor(false);
   };
 
+  // 経過観察・対応終了および再開（元に戻す）トグル
+  const handleToggleComplete = async () => {
+    if (!patient || !user) return;
+
+    if (patient.status === 'completed') {
+      // 終了から戻す（再開）
+      if (
+        window.confirm(
+          `患者「${patient.displayName} (${patient.patientCode})」の経過観察・対応を再開（終了から戻す）しますか？`
+        )
+      ) {
+        await updatePatientStatus(patient.id, 'observing');
+        await addTimelineItem(
+          patient.id,
+          {
+            type: 'action_record',
+            body: '【対応再開】経過観察・対応が再開されました。',
+            authorId: user.uid,
+            authorName: user.displayName,
+            authorRole: user.role,
+            requiresResponse: false,
+            priority: 'normal',
+          },
+          'observing'
+        );
+        await loadTimelineData();
+      }
+    } else {
+      // 経過観察・対応を終了する
+      if (
+        window.confirm(
+          `患者「${patient.displayName} (${patient.patientCode})」の経過観察・対応を終了にしますか？\n※データは削除されず保管され、いつでも「終了から戻す」ことができます。`
+        )
+      ) {
+        await updatePatientStatus(patient.id, 'completed');
+        await addTimelineItem(
+          patient.id,
+          {
+            type: 'action_record',
+            body: '【経過観察・対応終了】経過観察およびフォローアップ対応を終了しました。（データは保管されています）',
+            authorId: user.uid,
+            authorName: user.displayName,
+            authorRole: user.role,
+            requiresResponse: false,
+            priority: 'normal',
+          },
+          'completed'
+        );
+        await loadTimelineData();
+      }
+    }
+  };
+
   // ステータス直接変更
   const handleStatusChange = async (newStatus: PatientStatus) => {
     await updatePatientStatus(patient.id, newStatus);
@@ -189,7 +243,7 @@ export const PatientDetailPage: React.FC = () => {
     <Layout>
       <div className="space-y-6">
         {/* ナビリンク & 操作バー */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <Link
             to="/patients"
             className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-blue-600 transition"
@@ -198,7 +252,28 @@ export const PatientDetailPage: React.FC = () => {
             <span>患者一覧に戻る</span>
           </Link>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* 経過観察終了 / 戻す ボタン (医師および管理者が利用可能) */}
+            {patient.status === 'completed' ? (
+              <button
+                onClick={handleToggleComplete}
+                className="inline-flex items-center gap-1.5 text-xs bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-300 px-3.5 py-1.5 rounded-lg font-bold transition shadow-sm"
+                title="経過観察・対応を再開してアクティブに戻します"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+                <span>終了から戻す (対応再開)</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleToggleComplete}
+                className="inline-flex items-center gap-1.5 text-xs bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-700 px-3.5 py-1.5 rounded-lg font-bold transition shadow-sm"
+                title="経過観察・対応を完了して終了状態にします（データは保管されます）"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>経過観察・対応を終了する</span>
+              </button>
+            )}
+
             {user?.role === 'admin' && (
               <>
                 <button

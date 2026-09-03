@@ -6,11 +6,11 @@ import { Layout } from '../components/Layout';
 import { DoctorSidebar } from '../components/DoctorSidebar';
 import { StatusBadge, STATUS_CONFIG } from '../components/StatusBadge';
 import { PatientModal } from '../components/PatientModal';
-import { Search, UserPlus, Filter, Calendar, Stethoscope, ChevronRight, AlertCircle, MessageSquare } from 'lucide-react';
+import { Search, UserPlus, Filter, Calendar, Stethoscope, ChevronRight, AlertCircle, MessageSquare, RotateCcw, CheckCircle2 } from 'lucide-react';
 
 
 export const PatientListPage: React.FC = () => {
-  const { patients, doctors } = usePatients();
+  const { patients, doctors, updatePatientStatus } = usePatients();
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -234,8 +234,8 @@ export const PatientListPage: React.FC = () => {
                       )}
                     </div>
 
-                    {/* 右側: 担当医 & 日付 & 遷移矢印 */}
-                    <div className="flex items-center justify-between md:justify-end gap-4 border-t md:border-t-0 pt-2 md:pt-0 border-slate-100 text-xs text-slate-500">
+                    {/* 右側: 担当医 & 日付 & 終了操作 & 遷移矢印 */}
+                    <div className="flex items-center justify-between md:justify-end gap-3 border-t md:border-t-0 pt-2 md:pt-0 border-slate-100 text-xs text-slate-500 flex-wrap">
                       <div className="text-right">
                         <div className="flex items-center gap-1 text-slate-700 font-semibold justify-end">
                           <Stethoscope className="w-3.5 h-3.5 text-blue-600" />
@@ -246,6 +246,37 @@ export const PatientListPage: React.FC = () => {
                           <span>相談日: {p.consultationDate}</span>
                         </div>
                       </div>
+
+                      {/* 終了・戻すクイック操作ボタン */}
+                      {p.status === 'completed' ? (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`患者「${p.displayName} (${p.patientCode})」の経過観察・対応を再開（終了から戻す）しますか？`)) {
+                              await updatePatientStatus(p.id, 'observing');
+                            }
+                          }}
+                          className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-[11px] font-bold flex items-center gap-1 transition shadow-sm"
+                          title="終了から戻す（経過観察再開）"
+                        >
+                          <RotateCcw className="w-3 h-3 text-amber-700" />
+                          <span>終了から戻す</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`患者「${p.displayName} (${p.patientCode})」の経過観察・対応を終了にしますか？\n（データは保存され、いつでも「終了から戻す」ことができます）`)) {
+                              await updatePatientStatus(p.id, 'completed');
+                            }
+                          }}
+                          className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-[11px] font-bold flex items-center gap-1 transition shadow-sm"
+                          title="経過観察・対応を終了にする"
+                        >
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>終了にする</span>
+                        </button>
+                      )}
 
                       <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition" />
                     </div>

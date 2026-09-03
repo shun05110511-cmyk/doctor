@@ -46,7 +46,7 @@ export const STATUS_CONFIG: Record<
     dotBg: 'bg-sky-500',
   },
   completed: {
-    label: '対応完了',
+    label: '経過観察・対応終了',
     bg: 'bg-emerald-50',
     text: 'text-emerald-700',
     border: 'border-emerald-200',
