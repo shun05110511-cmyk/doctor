@@ -20,6 +20,9 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
 
   const [patientCode, setPatientCode] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState('未回答');
+  const [medicalHistory, setMedicalHistory] = useState('');
   const [consultationDate, setConsultationDate] = useState(
     new Date().toISOString().split('T')[0]
   );
@@ -34,13 +37,16 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
   const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // モーダルが開いた時だけ初期化（ドロップダウンの選択変更が勝手に上書きされないように依存配列を調整）
+  // モーダルが開いた時だけ初期化
   useEffect(() => {
     if (!isOpen) return;
 
     if (initialData) {
       setPatientCode(initialData.patientCode);
       setDisplayName(initialData.displayName);
+      setAge(initialData.age || '');
+      setGender(initialData.gender || '未回答');
+      setMedicalHistory(initialData.medicalHistory || '');
       setConsultationDate(initialData.consultationDate);
       setChiefComplaint(initialData.chiefComplaint);
       setConsultationDetails(initialData.consultationDetails || '');
@@ -54,6 +60,9 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
       // 初期新規作成時
       setPatientCode(`P-00${Math.floor(Math.random() * 900 + 100)}`);
       setDisplayName('');
+      setAge('');
+      setGender('未回答');
+      setMedicalHistory('');
       setConsultationDate(new Date().toISOString().split('T')[0]);
       setChiefComplaint('');
       setConsultationDetails('');
@@ -88,7 +97,7 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
     }
 
     // 担当ドクター名の決定
-    const selectedDocObj = doctors.find((d) => d.id === assignedDoctorId);
+    const selectedDocObj = availableDoctors.find((d) => d.id === assignedDoctorId);
     const assignedDoctorName =
       assignedDoctorId === 'unassigned'
         ? '担当医未設定'
@@ -104,6 +113,9 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
         await updatePatient(initialData.id, {
           patientCode: patientCode.trim(),
           displayName: displayName.trim(),
+          age: age.trim(),
+          gender,
+          medicalHistory: medicalHistory.trim(),
           consultationDate,
           chiefComplaint: chiefComplaint.trim(),
           consultationDetails: consultationDetails.trim(),
@@ -120,6 +132,9 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
         await createPatient({
           patientCode: patientCode.trim(),
           displayName: displayName.trim(),
+          age: age.trim(),
+          gender,
+          medicalHistory: medicalHistory.trim(),
           consultationDate,
           chiefComplaint: chiefComplaint.trim(),
           consultationDetails: consultationDetails.trim(),
@@ -199,6 +214,33 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
             </div>
           </div>
 
+          {/* 年齢 & 性別 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">年齢</label>
+              <input
+                type="text"
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                placeholder="例: 45歳"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">性別</label>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              >
+                <option value="未回答">未回答</option>
+                <option value="男性">男性</option>
+                <option value="女性">女性</option>
+                <option value="その他">その他</option>
+              </select>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block font-bold text-slate-700 mb-1">相談会実施日</label>
@@ -258,26 +300,41 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
             />
           </div>
 
+          {/* 既往歴 */}
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">既往歴</label>
+            <textarea
+              rows={2}
+              value={medicalHistory}
+              onChange={(e) => setMedicalHistory(e.target.value)}
+              placeholder="例: 高血圧、右膝半月板損傷（2020年）、アレルギー等"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+
           <div>
             <label className="block font-bold text-slate-700 mb-1">相談内容の詳細</label>
             <textarea
               rows={2}
               value={consultationDetails}
               onChange={(e) => setConsultationDetails(e.target.value)}
-              placeholder="患者からの相談詳細、既往歴、現在の状態など"
+              placeholder="患者からの相談詳細、生活環境、現在の状態など"
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
 
+          {/* 所見 & 助言 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block font-bold text-slate-700 mb-1">ドクターからの所見</label>
+              <label className="block font-bold text-slate-700 mb-1">
+                所見 (ドクター診察・評価)
+              </label>
               <textarea
                 rows={2}
                 value={doctorAssessment}
                 onChange={(e) => setDoctorAssessment(e.target.value)}
-                placeholder="相談会でのドクター診察・評価"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="相談会でのドクター診察・身体所見・画像評価など"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50/20 border-blue-200"
               />
             </div>
             <div>

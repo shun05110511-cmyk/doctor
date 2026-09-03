@@ -215,6 +215,16 @@ export const PatientListPage: React.FC = () => {
                           {p.displayName}
                         </h2>
                         <StatusBadge status={p.status} size="sm" />
+                        {p.age && (
+                          <span className="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 font-medium">
+                            {p.age}
+                          </span>
+                        )}
+                        {p.gender && (
+                          <span className="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 font-medium">
+                            {p.gender}
+                          </span>
+                        )}
                         {p.unreadCount !== undefined && p.unreadCount > 0 && (
                           <span className="inline-flex items-center gap-1 text-[10px] bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full border border-red-200">
                             <MessageSquare className="w-3 h-3" />
@@ -227,9 +237,15 @@ export const PatientListPage: React.FC = () => {
                         主訴: {p.chiefComplaint}
                       </p>
 
+                      {p.medicalHistory && (
+                        <p className="text-xs text-amber-900 bg-amber-50/70 px-2 py-0.5 rounded border border-amber-200/80 line-clamp-1">
+                          🏥 既往歴: {p.medicalHistory}
+                        </p>
+                      )}
+
                       {p.doctorAssessment && (
-                        <p className="text-xs text-slate-500 line-clamp-1">
-                          所見: {p.doctorAssessment}
+                        <p className="text-xs text-blue-900 bg-blue-50/60 px-2 py-0.5 rounded border border-blue-200/70 line-clamp-1">
+                          🩺 所見: {p.doctorAssessment}
                         </p>
                       )}
                     </div>

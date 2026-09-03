@@ -32,10 +32,13 @@ export interface Patient {
   id: string;
   patientCode: string;          // 例: P-001
   displayName: string;          // 例: 患者A
+  age?: string;                 // 年齢 (例: 45歳)
+  gender?: string;              // 性別 (例: 男性, 女性, その他)
+  medicalHistory?: string;      // 既往歴
   consultationDate: string;     // 相談会実施日 (YYYY-MM-DD)
   chiefComplaint: string;       // 主な相談内容
   consultationDetails: string;  // 相談内容の詳細
-  doctorAssessment: string;     // ドクターからの所見
+  doctorAssessment: string;     // 所見 (ドクターからの所見)
   doctorAdvice: string;         // ドクターからの助言
   followUpPlan: string;         // 今後の対応方針
   assignedDoctorId: string;     // ドクターID、未設定の場合は "unassigned"

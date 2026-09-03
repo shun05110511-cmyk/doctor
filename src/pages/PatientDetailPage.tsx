@@ -313,10 +313,22 @@ export const PatientDetailPage: React.FC = () => {
                 {patient.patientCode}
               </span>
               <div>
-                <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3 flex-wrap">
                   <span>{patient.displayName}</span>
                   <StatusBadge status={patient.status} size="lg" />
                 </h1>
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  {patient.age && (
+                    <span className="text-xs bg-slate-100 text-slate-700 font-bold px-2.5 py-0.5 rounded border border-slate-200">
+                      年齢: {patient.age}
+                    </span>
+                  )}
+                  {patient.gender && (
+                    <span className="text-xs bg-slate-100 text-slate-700 font-bold px-2.5 py-0.5 rounded border border-slate-200">
+                      性別: {patient.gender}
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-slate-400 mt-1 flex items-center gap-4">
                   <span className="flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5" />
@@ -396,13 +408,13 @@ export const PatientDetailPage: React.FC = () => {
         <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
             <FileText className="w-5 h-5 text-blue-600" />
-            <span>相談会記録</span>
+            <span>カルテ・相談内容・所見</span>
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm">
-            <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100">
-              <span className="font-bold text-slate-700 block mb-1">主訴・相談内容</span>
-              <p className="text-slate-800 whitespace-pre-wrap">{patient.chiefComplaint}</p>
+            <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200">
+              <span className="font-bold text-slate-800 block mb-1">主訴・相談内容</span>
+              <p className="text-slate-900 font-medium whitespace-pre-wrap">{patient.chiefComplaint}</p>
               {patient.consultationDetails && (
                 <p className="text-slate-600 mt-2 text-xs border-t border-slate-200 pt-2">
                   {patient.consultationDetails}
@@ -410,9 +422,18 @@ export const PatientDetailPage: React.FC = () => {
               )}
             </div>
 
-            <div className="bg-blue-50/50 p-3.5 rounded-lg border border-blue-100">
-              <span className="font-bold text-blue-900 block mb-1">ドクターの所見</span>
+            {/* 既往歴 */}
+            <div className="bg-amber-50/60 p-3.5 rounded-lg border border-amber-200">
+              <span className="font-bold text-amber-900 block mb-1">🏥 既往歴</span>
               <p className="text-slate-800 whitespace-pre-wrap">
+                {patient.medicalHistory || '（記録なし）'}
+              </p>
+            </div>
+
+            {/* 所見 (ドクター診察・評価) */}
+            <div className="bg-blue-50/70 p-3.5 rounded-lg border border-blue-200 col-span-1 md:col-span-2">
+              <span className="font-bold text-blue-900 block mb-1">🩺 所見 (ドクター診察・評価)</span>
+              <p className="text-slate-900 whitespace-pre-wrap font-medium">
                 {patient.doctorAssessment || '（記録なし）'}
               </p>
             </div>
