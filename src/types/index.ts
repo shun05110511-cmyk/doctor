@@ -38,7 +38,8 @@ export interface Patient {
   consultationDate: string;     // 相談会実施日 (YYYY-MM-DD)
   chiefComplaint: string;       // 主な相談内容
   consultationDetails: string;  // 相談内容の詳細
-  doctorAssessment: string;     // 所見 (ドクターからの所見)
+  preConsultationAssessment?: string; // 事前評価所見 (相談会参加前の評価・スタッフ所見)
+  doctorAssessment: string;     // ドクターからの所見 (医師診察・評価)
   doctorAdvice: string;         // ドクターからの助言
   followUpPlan: string;         // 今後の対応方針
   assignedDoctorId: string;     // ドクターID、未設定の場合は "unassigned"

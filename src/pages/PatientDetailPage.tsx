@@ -430,9 +430,17 @@ export const PatientDetailPage: React.FC = () => {
               </p>
             </div>
 
-            {/* 所見 (ドクター診察・評価) */}
-            <div className="bg-blue-50/70 p-3.5 rounded-lg border border-blue-200 col-span-1 md:col-span-2">
-              <span className="font-bold text-blue-900 block mb-1">🩺 所見 (ドクター診察・評価)</span>
+            {/* 事前評価所見 (スタッフ評価) */}
+            <div className="bg-emerald-50/60 p-3.5 rounded-lg border border-emerald-200">
+              <span className="font-bold text-emerald-950 block mb-1">📋 事前評価所見 (参加スクリーニング・スタッフ評価)</span>
+              <p className="text-slate-900 whitespace-pre-wrap font-medium">
+                {patient.preConsultationAssessment || '（記録なし）'}
+              </p>
+            </div>
+
+            {/* ドクター所見 (医師診察・評価) */}
+            <div className="bg-blue-50/70 p-3.5 rounded-lg border border-blue-200">
+              <span className="font-bold text-blue-950 block mb-1">🩺 ドクター所見 (医師診察・評価)</span>
               <p className="text-slate-900 whitespace-pre-wrap font-medium">
                 {patient.doctorAssessment || '（記録なし）'}
               </p>

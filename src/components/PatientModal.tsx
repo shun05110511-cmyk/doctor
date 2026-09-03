@@ -28,6 +28,7 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
   );
   const [chiefComplaint, setChiefComplaint] = useState('');
   const [consultationDetails, setConsultationDetails] = useState('');
+  const [preConsultationAssessment, setPreConsultationAssessment] = useState('');
   const [doctorAssessment, setDoctorAssessment] = useState('');
   const [doctorAdvice, setDoctorAdvice] = useState('');
   const [followUpPlan, setFollowUpPlan] = useState('');
@@ -50,6 +51,7 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
       setConsultationDate(initialData.consultationDate);
       setChiefComplaint(initialData.chiefComplaint);
       setConsultationDetails(initialData.consultationDetails || '');
+      setPreConsultationAssessment(initialData.preConsultationAssessment || '');
       setDoctorAssessment(initialData.doctorAssessment || '');
       setDoctorAdvice(initialData.doctorAdvice || '');
       setFollowUpPlan(initialData.followUpPlan || '');
@@ -66,6 +68,7 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
       setConsultationDate(new Date().toISOString().split('T')[0]);
       setChiefComplaint('');
       setConsultationDetails('');
+      setPreConsultationAssessment('');
       setDoctorAssessment('');
       setDoctorAdvice('');
       setFollowUpPlan('');
@@ -96,7 +99,6 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
       return;
     }
 
-    // 担当ドクター名の決定
     const selectedDocObj = availableDoctors.find((d) => d.id === assignedDoctorId);
     const assignedDoctorName =
       assignedDoctorId === 'unassigned'
@@ -119,6 +121,7 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
           consultationDate,
           chiefComplaint: chiefComplaint.trim(),
           consultationDetails: consultationDetails.trim(),
+          preConsultationAssessment: preConsultationAssessment.trim(),
           doctorAssessment: doctorAssessment.trim(),
           doctorAdvice: doctorAdvice.trim(),
           followUpPlan: followUpPlan.trim(),
@@ -138,6 +141,7 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
           consultationDate,
           chiefComplaint: chiefComplaint.trim(),
           consultationDetails: consultationDetails.trim(),
+          preConsultationAssessment: preConsultationAssessment.trim(),
           doctorAssessment: doctorAssessment.trim(),
           doctorAdvice: doctorAdvice.trim(),
           followUpPlan: followUpPlan.trim(),
@@ -323,20 +327,35 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
             />
           </div>
 
-          {/* 所見 & 助言 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* 事前評価所見 (スタッフ評価) & ドクター所見 (医師診察) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
             <div>
-              <label className="block font-bold text-slate-700 mb-1">
-                所見 (ドクター診察・評価)
+              <label className="block font-bold text-emerald-900 mb-1 flex items-center gap-1">
+                <span>📋 事前評価所見 (参加スクリーニング・スタッフ評価)</span>
               </label>
               <textarea
-                rows={2}
+                rows={3}
+                value={preConsultationAssessment}
+                onChange={(e) => setPreConsultationAssessment(e.target.value)}
+                placeholder="相談会参加にあたっての事前スクリーニング・動作観察・理学評価・受付時所見など"
+                className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-xs"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-blue-900 mb-1 flex items-center gap-1">
+                <span>🩺 ドクター所見 (医師診察・評価)</span>
+              </label>
+              <textarea
+                rows={3}
                 value={doctorAssessment}
                 onChange={(e) => setDoctorAssessment(e.target.value)}
                 placeholder="相談会でのドクター診察・身体所見・画像評価など"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50/20 border-blue-200"
+                className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-xs"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block font-bold text-slate-700 mb-1">ドクターからの助言</label>
               <textarea
@@ -347,17 +366,16 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">今後の対応方針</label>
-            <input
-              type="text"
-              value={followUpPlan}
-              onChange={(e) => setFollowUpPlan(e.target.value)}
-              placeholder="例: 週1回の経過観察およびリハビリ計画"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            />
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">今後の対応方針</label>
+              <textarea
+                rows={2}
+                value={followUpPlan}
+                onChange={(e) => setFollowUpPlan(e.target.value)}
+                placeholder="例: 週1回の経過観察およびリハビリ計画"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
           </div>
 
           <div>

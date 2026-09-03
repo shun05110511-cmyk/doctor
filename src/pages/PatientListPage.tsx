@@ -243,9 +243,15 @@ export const PatientListPage: React.FC = () => {
                         </p>
                       )}
 
+                      {p.preConsultationAssessment && (
+                        <p className="text-xs text-emerald-900 bg-emerald-50/70 px-2 py-0.5 rounded border border-emerald-200/80 line-clamp-1">
+                          📋 事前評価所見: {p.preConsultationAssessment}
+                        </p>
+                      )}
+
                       {p.doctorAssessment && (
                         <p className="text-xs text-blue-900 bg-blue-50/60 px-2 py-0.5 rounded border border-blue-200/70 line-clamp-1">
-                          🩺 所見: {p.doctorAssessment}
+                          🩺 ドクター所見: {p.doctorAssessment}
                         </p>
                       )}
                     </div>
