@@ -34,6 +34,44 @@ export const DoctorSidebar: React.FC<Props> = ({ selectedFilter, onSelectFilter 
     };
   };
 
+  // 医師アカウントの場合の専用サイドバービュー (他医師の情報非表示)
+  if (user?.role === 'doctor' && user.doctorId) {
+    const myDocObj = doctors.find((d) => d.id === user.doctorId);
+    const docName = myDocObj?.displayName || user.displayName;
+    const stats = getDoctorStats(user.doctorId);
+
+    return (
+      <aside className="w-full lg:w-64 bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-4">
+        <div>
+          <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 px-1 flex items-center gap-1.5 border-b border-slate-100 pb-2.5">
+            <Folder className="w-4 h-4 text-emerald-600" />
+            <span>担当ファイル ({docName})</span>
+          </h3>
+
+          <div className="space-y-2">
+            <div className="bg-emerald-50/70 border border-emerald-200 p-3.5 rounded-xl text-xs space-y-2">
+              <div className="flex items-center justify-between font-bold text-emerald-950">
+                <span>担当患者数</span>
+                <span className="text-base text-emerald-700 font-extrabold">{stats.total}名</span>
+              </div>
+              <div className="flex items-center justify-between text-slate-700 border-t border-emerald-200/60 pt-1.5">
+                <span>回答待ち患者</span>
+                <span className={`font-bold ${stats.waitingDoctor > 0 ? 'bg-amber-500 text-white px-2 py-0.5 rounded-full text-[11px] animate-pulse' : 'text-slate-400'}`}>
+                  {stats.waitingDoctor}件
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-slate-700">
+                <span>スタッフ確認待ち</span>
+                <span className="font-bold text-purple-700">{stats.waitingStaff}件</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
+  // 管理者・スタッフ向け全施設サイドバー
   const allActivePatients = patients.filter((p) => !p.archived);
   const totalWaitingDoctor = allActivePatients.filter((p) => p.status === 'waiting_doctor').length;
 

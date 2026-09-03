@@ -110,6 +110,26 @@ export const PatientDetailPage: React.FC = () => {
     );
   }
 
+  // 他の医師の担当患者情報へのアクセス遮断ガード
+  if (user?.role === 'doctor' && user.doctorId && patient.assignedDoctorId !== user.doctorId) {
+    return (
+      <Layout>
+        <div className="bg-white rounded-xl p-12 text-center text-slate-500 border border-slate-200 space-y-3">
+          <AlertCircle className="w-10 h-10 text-red-500 mx-auto" />
+          <h2 className="text-base font-bold text-slate-800">閲覧権限エラー</h2>
+          <p className="text-xs text-slate-600">
+            担当外の患者カルテ情報は閲覧できません。ご自身の担当患者のみ閲覧可能です。
+          </p>
+          <div>
+            <Link to="/patients" className="text-xs text-blue-600 font-bold hover:underline">
+              &larr; 担当患者一覧に戻る
+            </Link>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   // 担当ドクター変更処理（管理者）
   const handleDoctorChange = async (newDocId: string) => {
     const docObj = doctors.find((d) => d.id === newDocId);

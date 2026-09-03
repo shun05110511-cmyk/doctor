@@ -38,6 +38,11 @@ export const PatientListPage: React.FC = () => {
 
   // フィルタリング処理
   const filteredPatients = patients.filter((p) => {
+    // 医師アカウントの場合、自身の担当患者以外は閲覧不可（セキュリティ分離）
+    if (user?.role === 'doctor' && user.doctorId) {
+      if (p.assignedDoctorId !== user.doctorId) return false;
+    }
+
     // アーカイブフィルタ
     if (selectedDocFilter === 'archived') {
       if (!p.archived) return false;

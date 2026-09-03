@@ -26,13 +26,18 @@ export const DashboardPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [recentPosts, setRecentPosts] = useState<{ patientId: string; patientCode: string; patientName: string; item: TimelineItem }[]>([]);
 
+  // 医師アカウントの場合は自身の担当患者のみにスコープ制限
+  const scopedPatients = (user?.role === 'doctor' && user.doctorId)
+    ? patients.filter((p) => p.assignedDoctorId === user.doctorId)
+    : patients;
+
   // 最新投稿の収集
   useEffect(() => {
     let isMounted = true;
     const fetchRecent = async () => {
-      const activePatients = patients.filter((p) => !p.archived);
+      const activePts = scopedPatients.filter((p) => !p.archived);
       const allPosts: { patientId: string; patientCode: string; patientName: string; item: TimelineItem }[] = [];
-      for (const p of activePatients) {
+      for (const p of activePts) {
         const items = await getTimeline(p.id);
         for (const item of items) {
           allPosts.push({
@@ -56,10 +61,10 @@ export const DashboardPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [patients, getTimeline]);
+  }, [patients, user, getTimeline]);
 
-  // 全体集計データ
-  const activePatients = patients.filter((p) => !p.archived);
+  // 全体集計データ（医師権限の場合は自身の担当患者のみ）
+  const activePatients = scopedPatients.filter((p) => !p.archived);
   const totalCount = activePatients.length;
   const waitingDoctorCount = activePatients.filter((p) => p.status === 'waiting_doctor').length;
   const waitingStaffCount = activePatients.filter((p) => p.status === 'waiting_staff').length;
