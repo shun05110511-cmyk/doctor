@@ -9,38 +9,79 @@ import { INITIAL_USERS } from './seedData';
 
 const LOCAL_STORAGE_USER_KEY = 'doc_followup_current_user_v1';
 
+export const OFFICIAL_ACCOUNTS_MAP: Record<string, { password: string; role: 'admin' | 'doctor'; doctorId?: string; name: string }> = {
+  'scc@nittai.ac.jp': {
+    password: 'scc62625353',
+    role: 'admin',
+    name: '管理者 スタッフ',
+  },
+  'shirao@nittai.ac.jp': {
+    password: 'shirao1000',
+    role: 'doctor',
+    doctorId: 'doc-shirao',
+    name: '白尾 医師',
+  },
+  'fukaya@nittai.ac.jp': {
+    password: 'fukaya2000',
+    role: 'doctor',
+    doctorId: 'doc-fukaya',
+    name: '深谷 医師',
+  },
+  'okada@nittai.ac.jp': {
+    password: 'okada3000',
+    role: 'doctor',
+    doctorId: 'doc-okada',
+    name: '岡田 医師',
+  },
+};
+
 export async function loginWithEmail(email: string, pass: string): Promise<UserProfile> {
-  if (!isFirebaseConfigured) {
-    // デモログインモード: INITIAL_USERSから検索
-    const found = INITIAL_USERS.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  const normEmail = email.toLowerCase().trim();
+  const official = OFFICIAL_ACCOUNTS_MAP[normEmail];
+
+  if (official) {
+    if (pass !== official.password) {
+      throw new Error('パスワードが正しくありません。');
+    }
+    const found = INITIAL_USERS.find((u) => u.email.toLowerCase() === normEmail);
     if (found) {
       localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(found));
       return found;
     }
-    // 見つからない場合は入力されたメールアドレスに基づきデフォルト管理者/スタッフでログイン
-    const mockUser: UserProfile = {
-      uid: `user-${Date.now()}`,
-      displayName: email.split('@')[0] || '一般ユーザー',
-      email: email,
-      role: email.includes('doctor') ? 'doctor' : email.includes('admin') ? 'admin' : 'staff',
+    const customUser: UserProfile = {
+      uid: `user-${normEmail.replace(/[^a-z0-9]/g, '')}`,
+      displayName: official.name,
+      email: normEmail,
+      role: official.role,
+      doctorId: official.doctorId,
       active: true,
     };
-    localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(mockUser));
-    return mockUser;
+    localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(customUser));
+    return customUser;
+  }
+
+  // デモ用互換・新規メールアドレス
+  if (!isFirebaseConfigured) {
+    const found = INITIAL_USERS.find((u) => u.email.toLowerCase() === normEmail);
+    if (found) {
+      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(found));
+      return found;
+    }
+    throw new Error('メールアドレスまたはパスワードが正しくありません。');
   }
 
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, pass);
     const fbUser = userCredential.user;
     
-    // Firestore から users/{uid} のロール情報を取得
     const userDocRef = doc(db, 'users', fbUser.uid);
     const userDocSnap = await getDoc(userDocRef);
 
     if (userDocSnap.exists()) {
-      return { uid: fbUser.uid, ...userDocSnap.data() } as UserProfile;
+      const u = { uid: fbUser.uid, ...userDocSnap.data() } as UserProfile;
+      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(u));
+      return u;
     } else {
-      // ユーザーデータが存在しない場合は初期化
       const matchingInit = INITIAL_USERS.find((u) => u.email === fbUser.email);
       const newUser: UserProfile = {
         uid: fbUser.uid,
@@ -51,6 +92,7 @@ export async function loginWithEmail(email: string, pass: string): Promise<UserP
         active: true,
       };
       await setDoc(userDocRef, newUser);
+      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(newUser));
       return newUser;
     }
   } catch (error: any) {
@@ -63,12 +105,17 @@ export function getCurrentLocalUser(): UserProfile | null {
   const saved = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
   if (saved) {
     try {
-      return JSON.parse(saved);
+      const parsed: UserProfile = JSON.parse(saved);
+      if (parsed.email === 'admin@example.com') parsed.email = 'scc@nittai.ac.jp';
+      if (parsed.email === 'shirao@example.com') parsed.email = 'shirao@nittai.ac.jp';
+      if (parsed.email === 'fukaya@example.com') parsed.email = 'fukaya@nittai.ac.jp';
+      if (parsed.email === 'okada@example.com') parsed.email = 'okada@nittai.ac.jp';
+      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(parsed));
+      return parsed;
     } catch (e) {
       console.error(e);
     }
   }
-  // デフォルトで管理者としてログイン状態にする（動作確認利便性）
   const defaultUser = INITIAL_USERS[0];
   localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(defaultUser));
   return defaultUser;
