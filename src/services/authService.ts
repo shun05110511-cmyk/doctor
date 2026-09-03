@@ -1,5 +1,7 @@
 import {
   signInWithEmailAndPassword,
+  setPersistence,
+  browserSessionPersistence,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -7,7 +9,9 @@ import { auth, db, isFirebaseConfigured } from './firebase';
 import type { UserProfile } from '../types';
 import { INITIAL_USERS } from './seedData';
 
-const LOCAL_STORAGE_USER_KEY = 'doc_followup_current_user_v1';
+// セッションストレージを使用（Webタブ・ブラウザを閉じる度にログイン情報がクリアされ、再訪問時にログインが必須となる）
+const SESSION_STORAGE_USER_KEY = 'doc_followup_session_user_v2';
+const LEGACY_LOCAL_STORAGE_KEY = 'doc_followup_current_user_v1';
 
 export const OFFICIAL_ACCOUNTS_MAP: Record<string, { password: string; role: 'admin' | 'doctor'; doctorId?: string; name: string }> = {
   'scc@nittai.ac.jp': {
@@ -39,13 +43,16 @@ export async function loginWithEmail(email: string, pass: string): Promise<UserP
   const normEmail = email.toLowerCase().trim();
   const official = OFFICIAL_ACCOUNTS_MAP[normEmail];
 
+  // 以前の永続localStorageログイン情報をクリア
+  localStorage.removeItem(LEGACY_LOCAL_STORAGE_KEY);
+
   if (official) {
     if (pass !== official.password) {
       throw new Error('パスワードが正しくありません。');
     }
     const found = INITIAL_USERS.find((u) => u.email.toLowerCase() === normEmail);
     if (found) {
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(found));
+      sessionStorage.setItem(SESSION_STORAGE_USER_KEY, JSON.stringify(found));
       return found;
     }
     const customUser: UserProfile = {
@@ -56,7 +63,7 @@ export async function loginWithEmail(email: string, pass: string): Promise<UserP
       doctorId: official.doctorId,
       active: true,
     };
-    localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(customUser));
+    sessionStorage.setItem(SESSION_STORAGE_USER_KEY, JSON.stringify(customUser));
     return customUser;
   }
 
@@ -64,13 +71,15 @@ export async function loginWithEmail(email: string, pass: string): Promise<UserP
   if (!isFirebaseConfigured) {
     const found = INITIAL_USERS.find((u) => u.email.toLowerCase() === normEmail);
     if (found) {
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(found));
+      sessionStorage.setItem(SESSION_STORAGE_USER_KEY, JSON.stringify(found));
       return found;
     }
     throw new Error('メールアドレスまたはパスワードが正しくありません。');
   }
 
   try {
+    // Firebase Auth の保持設定をブラウザセッション（タブ/ウィンドウ閉じで破棄）に設定
+    await setPersistence(auth, browserSessionPersistence);
     const userCredential = await signInWithEmailAndPassword(auth, email, pass);
     const fbUser = userCredential.user;
     
@@ -79,7 +88,7 @@ export async function loginWithEmail(email: string, pass: string): Promise<UserP
 
     if (userDocSnap.exists()) {
       const u = { uid: fbUser.uid, ...userDocSnap.data() } as UserProfile;
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(u));
+      sessionStorage.setItem(SESSION_STORAGE_USER_KEY, JSON.stringify(u));
       return u;
     } else {
       const matchingInit = INITIAL_USERS.find((u) => u.email === fbUser.email);
@@ -92,7 +101,7 @@ export async function loginWithEmail(email: string, pass: string): Promise<UserP
         active: true,
       };
       await setDoc(userDocRef, newUser);
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(newUser));
+      sessionStorage.setItem(SESSION_STORAGE_USER_KEY, JSON.stringify(newUser));
       return newUser;
     }
   } catch (error: any) {
@@ -102,25 +111,26 @@ export async function loginWithEmail(email: string, pass: string): Promise<UserP
 }
 
 export function getCurrentLocalUser(): UserProfile | null {
-  const saved = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
+  // 旧方式のlocalStorage保存をクリア（必ずセッションごとにログインを要求するため）
+  if (localStorage.getItem(LEGACY_LOCAL_STORAGE_KEY)) {
+    localStorage.removeItem(LEGACY_LOCAL_STORAGE_KEY);
+  }
+
+  const saved = sessionStorage.getItem(SESSION_STORAGE_USER_KEY);
   if (saved) {
     try {
       const parsed: UserProfile = JSON.parse(saved);
-      if (parsed.email === 'admin@example.com') parsed.email = 'scc@nittai.ac.jp';
-      if (parsed.email === 'shirao@example.com') parsed.email = 'shirao@nittai.ac.jp';
-      if (parsed.email === 'fukaya@example.com') parsed.email = 'fukaya@nittai.ac.jp';
-      if (parsed.email === 'okada@example.com') parsed.email = 'okada@nittai.ac.jp';
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(parsed));
       return parsed;
     } catch (e) {
       console.error(e);
     }
   }
+  // セッションストレージになければ未ログイン (null) を返す
   return null;
 }
 
 export function setQuickSwitchUser(user: UserProfile): void {
-  localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(user));
+  sessionStorage.setItem(SESSION_STORAGE_USER_KEY, JSON.stringify(user));
 }
 
 export function getPortalPath(user: UserProfile | null): string {
@@ -134,7 +144,8 @@ export function getPortalPath(user: UserProfile | null): string {
 }
 
 export async function logoutUser(): Promise<void> {
-  localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+  sessionStorage.removeItem(SESSION_STORAGE_USER_KEY);
+  localStorage.removeItem(LEGACY_LOCAL_STORAGE_KEY);
   if (isFirebaseConfigured) {
     try {
       await firebaseSignOut(auth);
