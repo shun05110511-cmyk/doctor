@@ -50,6 +50,7 @@ export const PatientDetailPage: React.FC = () => {
     getTimeline,
     addTimelineItem,
     toggleConfirm,
+    deleteTimelineItem,
     refreshPatients,
   } = usePatients();
 
@@ -275,6 +276,15 @@ export const PatientDetailPage: React.FC = () => {
   const handleToggleConfirm = async (timelineId: string) => {
     const updated = await toggleConfirm(patient.id, timelineId);
     setTimeline(updated);
+  };
+
+  // 経過タイムラインコメントの削除処理
+  const handleDeleteTimelineItem = async (timelineId: string) => {
+    if (!patient) return;
+    if (window.confirm('この経過投稿コメントを削除しますか？')) {
+      const updated = await deleteTimelineItem(patient.id, timelineId);
+      setTimeline(updated);
+    }
   };
 
   return (
@@ -685,9 +695,20 @@ export const PatientDetailPage: React.FC = () => {
                         </span>
                       </div>
 
-                      <span className="text-[11px] text-slate-400 font-mono">
-                        {new Date(item.createdAt).toLocaleString('ja-JP')}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          {new Date(item.createdAt).toLocaleString('ja-JP')}
+                        </span>
+                        {(user?.role === 'admin' || user?.role === 'doctor' || item.authorId === user?.uid) && (
+                          <button
+                            onClick={() => handleDeleteTimelineItem(item.id)}
+                            className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-1 rounded transition"
+                            title="この投稿コメントを削除"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <p className="text-xs sm:text-sm text-slate-900 whitespace-pre-wrap leading-relaxed">

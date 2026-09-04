@@ -406,6 +406,25 @@ export async function toggleConfirmTimelineItem(
   return currentItems;
 }
 
+export async function deleteTimelineItem(patientId: string, timelineId: string): Promise<TimelineItem[]> {
+  const timelinesMap = getLocalTimelines();
+  const currentItems = timelinesMap[patientId] || [];
+  const updatedItems = currentItems.filter((t) => t.id !== timelineId);
+  timelinesMap[patientId] = updatedItems;
+  saveLocalTimelines(timelinesMap);
+
+  if (isFirebaseConfigured) {
+    try {
+      const itemRef = doc(db, 'patients', patientId, 'timeline', timelineId);
+      await withTimeout(deleteDoc(itemRef), 3000);
+    } catch (error) {
+      console.warn('Firestore deleteTimelineItem error:', error);
+    }
+  }
+
+  return updatedItems;
+}
+
 export async function deletePatient(patientId: string): Promise<void> {
   const list = getLocalPatients();
   const updated = list.filter((p) => p.id !== patientId);

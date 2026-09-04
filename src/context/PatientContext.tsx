@@ -8,6 +8,7 @@ import {
   deletePatient as deletePatientService,
   addTimelineItem as addTimelineItemService,
   toggleConfirmTimelineItem as toggleConfirmTimelineItemService,
+  deleteTimelineItem as deleteTimelineItemService,
   fetchTimeline as fetchTimelineService,
 } from '../services/patientService';
 import { INITIAL_DOCTORS } from '../services/seedData';
@@ -31,6 +32,7 @@ interface PatientContextType {
     currentStatus: PatientStatus
   ) => Promise<TimelineItem>;
   toggleConfirm: (patientId: string, timelineId: string) => Promise<TimelineItem[]>;
+  deleteTimelineItem: (patientId: string, timelineId: string) => Promise<TimelineItem[]>;
 }
 
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
@@ -120,6 +122,12 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return updatedList;
   };
 
+  const deleteTimelineItem = async (patientId: string, timelineId: string) => {
+    const updatedList = await deleteTimelineItemService(patientId, timelineId);
+    await loadData();
+    return updatedList;
+  };
+
   return (
     <PatientContext.Provider
       value={{
@@ -136,6 +144,7 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ child
         getTimeline,
         addTimelineItem,
         toggleConfirm,
+        deleteTimelineItem,
       }}
     >
       {children}
