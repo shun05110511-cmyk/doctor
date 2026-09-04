@@ -32,7 +32,6 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
   const [consultationDetails, setConsultationDetails] = useState('');
   const [preConsultationAssessment, setPreConsultationAssessment] = useState('');
   const [doctorAssessment, setDoctorAssessment] = useState('');
-  const [doctorAdvice, setDoctorAdvice] = useState('');
   const [followUpPlan, setFollowUpPlan] = useState('');
   const [assignedDoctorId, setAssignedDoctorId] = useState('doc-shirao');
   const [status, setStatus] = useState<PatientStatus>('new');
@@ -57,7 +56,6 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
       setConsultationDetails(initialData.consultationDetails || '');
       setPreConsultationAssessment(initialData.preConsultationAssessment || '');
       setDoctorAssessment(initialData.doctorAssessment || '');
-      setDoctorAdvice(initialData.doctorAdvice || '');
       setFollowUpPlan(initialData.followUpPlan || '');
       setAssignedDoctorId(initialData.assignedDoctorId || 'unassigned');
       setStatus(initialData.status);
@@ -76,7 +74,6 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
       setConsultationDetails('');
       setPreConsultationAssessment('');
       setDoctorAssessment('');
-      setDoctorAdvice('');
       setFollowUpPlan('');
       const defaultDoc = (user?.role === 'doctor' && user?.doctorId) ? user.doctorId : (availableDoctors[0]?.id || 'doc-shirao');
       setAssignedDoctorId(defaultDoc);
@@ -131,7 +128,6 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
           consultationDetails: consultationDetails.trim(),
           preConsultationAssessment: preConsultationAssessment.trim(),
           doctorAssessment: doctorAssessment.trim(),
-          doctorAdvice: doctorAdvice.trim(),
           followUpPlan: followUpPlan.trim(),
           assignedDoctorId,
           assignedDoctorName,
@@ -153,7 +149,6 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
           consultationDetails: consultationDetails.trim(),
           preConsultationAssessment: preConsultationAssessment.trim(),
           doctorAssessment: doctorAssessment.trim(),
-          doctorAdvice: doctorAdvice.trim(),
           followUpPlan: followUpPlan.trim(),
           assignedDoctorId,
           assignedDoctorName,
@@ -391,27 +386,15 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">ドクターからの助言</label>
-              <textarea
-                rows={2}
-                value={doctorAdvice}
-                onChange={(e) => setDoctorAdvice(e.target.value)}
-                placeholder="患者への初期助言事項"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">今後の対応方針</label>
-              <textarea
-                rows={2}
-                value={followUpPlan}
-                onChange={(e) => setFollowUpPlan(e.target.value)}
-                placeholder="例: 週1回の経過観察およびリハビリ計画"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">今後の対応方針</label>
+            <textarea
+              rows={2}
+              value={followUpPlan}
+              onChange={(e) => setFollowUpPlan(e.target.value)}
+              placeholder="例: 週1回の経過観察およびリハビリ計画"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            />
           </div>
 
           <div>

@@ -1,29 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { usePatients } from '../context/PatientContext';
 import { useAuth } from '../context/AuthContext';
-import { Layout } from '../components/Layout';
 import { StatusBadge, STATUS_CONFIG } from '../components/StatusBadge';
-import { PriorityBadge } from '../components/PriorityBadge';
 import { PatientModal } from '../components/PatientModal';
+import type { Patient, TimelineItem, PatientStatus, TimelineItemType, PriorityLevel } from '../types';
 import {
+  ArrowLeft,
+  Edit,
+  Trash2,
+  Archive,
   Stethoscope,
   Calendar,
-  User,
   Clock,
+  FileText,
+  MessageSquare,
   Send,
   CheckCircle2,
-  Edit,
-  ArrowLeft,
   AlertCircle,
-  FileText,
-  UserCheck,
-  Archive,
-  Trash2,
-  MessageSquare,
   RotateCcw,
+  UserCheck,
+  ShieldAlert,
 } from 'lucide-react';
-import type { Patient, TimelineItem, TimelineItemType, PriorityLevel, PatientStatus } from '../types';
+import { Layout } from '../components/Layout';
 
 const TIMELINE_TYPE_CONFIG: Record<
   TimelineItemType,
@@ -43,6 +42,7 @@ export const PatientDetailPage: React.FC = () => {
   const {
     patients,
     doctors,
+    updatePatient,
     updatePatientDoctor,
     updatePatientStatus,
     archivePatient,
@@ -50,12 +50,18 @@ export const PatientDetailPage: React.FC = () => {
     getTimeline,
     addTimelineItem,
     toggleConfirm,
+    refreshPatients,
   } = usePatients();
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isChangingDoctor, setIsChangingDoctor] = useState(false);
+
+  // ドクター所見のインライン直接編集State
+  const [isEditingDoctorAssessment, setIsEditingDoctorAssessment] = useState(false);
+  const [doctorAssessmentInput, setDoctorAssessmentInput] = useState('');
+  const [savingAssessment, setSavingAssessment] = useState(false);
 
   // フォーム用State
   const [postType, setPostType] = useState<TimelineItemType>('progress_report');
@@ -71,11 +77,12 @@ export const PatientDetailPage: React.FC = () => {
       const found = patients.find((p) => p.id === id);
       if (found) {
         setPatient(found);
+        setDoctorAssessmentInput(found.doctorAssessment || '');
       }
     }
   }, [id, patients]);
 
-  // タイムラインの取得
+  // タイムライン取得
   const loadTimelineData = async () => {
     if (id) {
       const items = await getTimeline(id);
@@ -87,36 +94,32 @@ export const PatientDetailPage: React.FC = () => {
     loadTimelineData();
   }, [id]);
 
-  // ドクターロールの場合、投稿種別初期値を自動選択（ドクター回答）
-  useEffect(() => {
-    if (user?.role === 'doctor') {
-      setPostType('doctor_response');
-    }
-  }, [user]);
-
   if (!patient) {
     return (
       <Layout>
-        <div className="bg-white rounded-xl p-12 text-center text-slate-500 border border-slate-200">
-          <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-          指定された患者情報が見つかりません。
-          <div className="mt-4">
-            <Link to="/patients" className="text-blue-600 font-bold hover:underline">
-              &larr; 患者一覧へ戻る
-            </Link>
-          </div>
+        <div className="text-center py-12">
+          <p className="text-slate-500">患者情報が見つかりません。</p>
+          <Link to="/patients" className="text-blue-600 hover:underline text-sm font-bold mt-2 inline-block">
+            &larr; 患者一覧に戻る
+          </Link>
         </div>
       </Layout>
     );
   }
 
-  // 他の医師の担当患者情報へのアクセス遮断ガード
-  if (user?.role === 'doctor' && user.doctorId && patient.assignedDoctorId !== user.doctorId) {
+  // 医師ロール時のアクセスガード：他医師の患者カルテ閲覧遮断
+  const isDoctorUser = user?.role === 'doctor';
+  const isAssignedDoctor = isDoctorUser && patient.assignedDoctorId === user.doctorId;
+  const isForbiddenForDoctor = isDoctorUser && !isAssignedDoctor;
+
+  if (isForbiddenForDoctor) {
     return (
       <Layout>
-        <div className="bg-white rounded-xl p-12 text-center text-slate-500 border border-slate-200 space-y-3">
-          <AlertCircle className="w-10 h-10 text-red-500 mx-auto" />
-          <h2 className="text-base font-bold text-slate-800">閲覧権限エラー</h2>
+        <div className="max-w-xl mx-auto my-12 bg-red-50 border-2 border-red-200 rounded-2xl p-8 text-center space-y-4 shadow-sm">
+          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto text-red-600">
+            <ShieldAlert className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-bold text-red-900">閲覧権限エラー</h2>
           <p className="text-xs text-slate-600">
             担当外の患者カルテ情報は閲覧できません。ご自身の担当患者のみ閲覧可能です。
           </p>
@@ -136,6 +139,26 @@ export const PatientDetailPage: React.FC = () => {
     const docName = newDocId === 'unassigned' ? '担当医未設定' : docObj?.displayName || '担当医未設定';
     await updatePatientDoctor(patient.id, newDocId, docName);
     setIsChangingDoctor(false);
+  };
+
+  // ドクター所見の保存処理（医師・スタッフ共通）
+  const handleSaveDoctorAssessment = async () => {
+    if (!patient) return;
+    setSavingAssessment(true);
+    try {
+      await updatePatient(patient.id, { doctorAssessment: doctorAssessmentInput.trim() });
+      setIsEditingDoctorAssessment(false);
+      await refreshPatients();
+    } catch (err: any) {
+      alert('所見の保存に失敗しました: ' + err.message);
+    } finally {
+      setSavingAssessment(false);
+    }
+  };
+
+  // ステータス変更処理
+  const handleStatusChange = async (newStatus: PatientStatus) => {
+    await updatePatientStatus(patient.id, newStatus);
   };
 
   // 経過観察・対応終了および再開（元に戻す）トグル
@@ -189,11 +212,6 @@ export const PatientDetailPage: React.FC = () => {
         await loadTimelineData();
       }
     }
-  };
-
-  // ステータス直接変更
-  const handleStatusChange = async (newStatus: PatientStatus) => {
-    await updatePatientStatus(patient.id, newStatus);
   };
 
   // アーカイブ処理
@@ -298,30 +316,29 @@ export const PatientDetailPage: React.FC = () => {
               <>
                 <button
                   onClick={handleArchive}
-                  className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-700 border border-slate-300 px-3 py-1.5 rounded-lg transition"
+                  className="inline-flex items-center gap-1 text-xs bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 px-3 py-1.5 rounded-lg font-medium transition shadow-sm"
                 >
                   <Archive className="w-3.5 h-3.5" />
                   <span>アーカイブ</span>
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="inline-flex items-center gap-1 text-xs bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 border border-red-200 px-3 py-1.5 rounded-lg font-bold transition shadow-sm"
-                  title="データベースから完全削除"
+                  className="inline-flex items-center gap-1 text-xs bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-lg font-medium transition shadow-sm"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>完全削除</span>
                 </button>
               </>
             )}
-            {user?.role !== 'doctor' && (
-              <button
-                onClick={() => setIsEditModalOpen(true)}
-                className="inline-flex items-center gap-1 text-xs bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 px-3 py-1.5 rounded-lg font-bold transition shadow-sm"
-              >
-                <Edit className="w-3.5 h-3.5 text-blue-600" />
-                <span>患者情報を編集</span>
-              </button>
-            )}
+
+            {/* 患者情報編集ボタン (医師・管理者・スタッフ全員利用可能) */}
+            <button
+              onClick={() => setIsEditModalOpen(true)}
+              className="inline-flex items-center gap-1 text-xs bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 px-3 py-1.5 rounded-lg font-bold transition shadow-sm"
+            >
+              <Edit className="w-3.5 h-3.5 text-blue-600" />
+              <span>患者情報を編集</span>
+            </button>
           </div>
         </div>
 
@@ -376,7 +393,7 @@ export const PatientDetailPage: React.FC = () => {
               </div>
             </div>
 
-            {/* 担当ドクター表示 & 変更エリア (要件) */}
+            {/* 担当ドクター表示 & 変更エリア */}
             <div className="bg-blue-50/80 border border-blue-200 p-3 rounded-xl flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <Stethoscope className="w-5 h-5 text-blue-600" />
@@ -472,22 +489,59 @@ export const PatientDetailPage: React.FC = () => {
               </p>
             </div>
 
-            {/* ドクター所見 (医師診察・評価) */}
-            <div className="bg-blue-50/70 p-3.5 rounded-lg border border-blue-200">
-              <span className="font-bold text-blue-950 block mb-1">🩺 ドクター所見 (医師診察・評価)</span>
-              <p className="text-slate-900 whitespace-pre-wrap font-medium">
-                {patient.doctorAssessment || '（記録なし）'}
-              </p>
+            {/* ドクター所見 (医師診察・評価) - 医師および関係者が直接編集可能 */}
+            <div className="bg-blue-50/80 p-3.5 rounded-lg border border-blue-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-blue-950 flex items-center gap-1.5">
+                  <Stethoscope className="w-4 h-4 text-blue-600" />
+                  <span>ドクター所見 (医師診察・評価)</span>
+                </span>
+                {!isEditingDoctorAssessment ? (
+                  <button
+                    onClick={() => {
+                      setDoctorAssessmentInput(patient.doctorAssessment || '');
+                      setIsEditingDoctorAssessment(true);
+                    }}
+                    className="text-xs bg-white text-blue-700 hover:bg-blue-100 border border-blue-300 px-2.5 py-1 rounded font-bold transition shadow-sm"
+                  >
+                    ✏️ 所見を編集
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setIsEditingDoctorAssessment(false)}
+                      className="text-xs text-slate-600 bg-white hover:bg-slate-100 border border-slate-300 px-2 py-1 rounded font-medium"
+                    >
+                      キャンセル
+                    </button>
+                    <button
+                      onClick={handleSaveDoctorAssessment}
+                      disabled={savingAssessment}
+                      className="text-xs text-white bg-blue-600 hover:bg-blue-700 font-bold px-2.5 py-1 rounded shadow-sm disabled:opacity-50"
+                    >
+                      {savingAssessment ? '保存中...' : '💾 所見を保存'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {isEditingDoctorAssessment ? (
+                <textarea
+                  rows={4}
+                  value={doctorAssessmentInput}
+                  onChange={(e) => setDoctorAssessmentInput(e.target.value)}
+                  placeholder="ドクター所見・診察意見・理学所見・画像評価などを記入・編集してください..."
+                  className="w-full p-2.5 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-xs sm:text-sm text-slate-900 font-medium leading-relaxed"
+                />
+              ) : (
+                <p className="text-slate-900 whitespace-pre-wrap font-medium text-xs sm:text-sm leading-relaxed">
+                  {patient.doctorAssessment || '（ドクター所見の記録なし - 右上の「✏️ 所見を編集」から直接入力できます）'}
+                </p>
+              )}
             </div>
 
-            <div className="bg-emerald-50/50 p-3.5 rounded-lg border border-emerald-100">
-              <span className="font-bold text-emerald-900 block mb-1">ドクターの助言</span>
-              <p className="text-slate-800 whitespace-pre-wrap">
-                {patient.doctorAdvice || '（記録なし）'}
-              </p>
-            </div>
-
-            <div className="bg-purple-50/50 p-3.5 rounded-lg border border-purple-100">
+            {/* 今後の対応方針 */}
+            <div className="bg-purple-50/50 p-3.5 rounded-lg border border-purple-100 md:col-span-2">
               <span className="font-bold text-purple-900 block mb-1">今後の対応方針</span>
               <p className="text-slate-800 whitespace-pre-wrap">
                 {patient.followUpPlan || '（未設定）'}
@@ -521,58 +575,39 @@ export const PatientDetailPage: React.FC = () => {
             </div>
 
             {postError && (
-              <div className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">
-                {postError}
+              <div className="bg-red-50 text-red-700 text-xs p-2.5 rounded border border-red-200 flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{postError}</span>
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 mb-1">投稿種別</label>
                 <select
                   value={postType}
                   onChange={(e) => setPostType(e.target.value as TimelineItemType)}
-                  className="w-full text-xs py-2 px-2.5 border border-slate-300 rounded-lg bg-white font-semibold outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {user?.role === 'doctor' ? (
-                    <>
-                      <option value="doctor_response">🩺 ドクターからの回答</option>
-                      <option value="other">💬 その他の連絡・追加助言</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="progress_report">📝 スタッフ経過報告</option>
-                      <option value="doctor_question">❓ ドクターへの確認依頼 (自動で回答待ち化)</option>
-                      <option value="action_record">✅ スタッフ対応記録</option>
-                      <option value="other">💬 その他の連絡</option>
-                    </>
-                  )}
+                  {Object.entries(TIMELINE_TYPE_CONFIG).map(([typeKey, cfg]) => (
+                    <option key={typeKey} value={typeKey}>
+                      {cfg.icon} {cfg.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">緊急度</label>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">優先度・緊急度</label>
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value as PriorityLevel)}
-                  className="w-full text-xs py-2 px-2.5 border border-slate-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="normal">通常</option>
                   <option value="soon">早めに確認</option>
-                  <option value="important">重要</option>
+                  <option value="important">重要 (要確認)</option>
                 </select>
-              </div>
-
-              <div className="flex items-end pb-1">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={requiresResponse}
-                    onChange={(e) => setRequiresResponse(e.target.checked)}
-                    className="rounded border-slate-300 text-blue-600 w-4 h-4"
-                  />
-                  <span>返信・回答が必要</span>
-                </label>
               </div>
             </div>
 
@@ -581,105 +616,128 @@ export const PatientDetailPage: React.FC = () => {
                 rows={3}
                 value={postBody}
                 onChange={(e) => setPostBody(e.target.value)}
-                placeholder="患者の様子、スタッフからの質問、所見などを具体的にご記入ください..."
-                className="w-full p-3 border border-slate-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="経過の更新状況、ドクターへの質問、患者の現在の状態などを入力してください..."
+                className="w-full text-xs sm:text-sm p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between pt-1">
+              <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer font-medium select-none">
+                <input
+                  type="checkbox"
+                  checked={requiresResponse}
+                  onChange={(e) => setRequiresResponse(e.target.checked)}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                />
+                <span>要回答 (返信が必要な案件)</span>
+              </label>
+
               <button
                 type="submit"
                 disabled={submittingPost}
-                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition shadow-sm disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg transition shadow-sm disabled:opacity-50"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>{submittingPost ? '送信中...' : '投稿を送信'}</span>
+                <span>{submittingPost ? '送信中...' : 'タイムラインに投稿'}</span>
               </button>
             </div>
           </form>
 
-          {/* タイムラインリスト */}
-          {timeline.length === 0 ? (
-            <div className="text-center py-8 text-xs text-slate-400">
-              まだ投稿はありません。上のフォームから最初の投稿を追加してください。
-            </div>
-          ) : (
-            <div className="relative border-l-2 border-slate-200 ml-4 pl-6 space-y-6">
-              {timeline.map((item) => {
+          {/* タイムライン一覧表示 */}
+          <div className="space-y-4 pt-2">
+            {timeline.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-6">
+                まだタイムライン記録がありません。
+              </p>
+            ) : (
+              timeline.map((item) => {
                 const typeCfg = TIMELINE_TYPE_CONFIG[item.type] || TIMELINE_TYPE_CONFIG.other;
                 const isConfirmedByMe = item.confirmedBy?.some((c) => c.userId === user?.uid);
 
                 return (
-                  <div key={item.id} className="relative group">
-                    {/* タイムラインの丸アイコン */}
-                    <div className="absolute -left-[33px] top-1.5 w-6 h-6 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center text-xs shadow-sm">
-                      {typeCfg.icon}
+                  <div
+                    key={item.id}
+                    className={`p-4 rounded-xl border transition ${
+                      item.priority === 'important'
+                        ? 'bg-red-50/50 border-red-200'
+                        : item.priority === 'soon'
+                        ? 'bg-amber-50/40 border-amber-200'
+                        : 'bg-white border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2 mb-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${typeCfg.bg} ${typeCfg.text}`}>
+                          {typeCfg.icon} {typeCfg.label}
+                        </span>
+                        {item.priority === 'important' && (
+                          <span className="text-[10px] bg-red-600 text-white font-bold px-1.5 py-0.5 rounded">
+                            重要
+                          </span>
+                        )}
+                        {item.priority === 'soon' && (
+                          <span className="text-[10px] bg-amber-600 text-white font-bold px-1.5 py-0.5 rounded">
+                            早めに確認
+                          </span>
+                        )}
+                        <span className="text-xs font-bold text-slate-800">
+                          {item.authorName} ({item.authorRole})
+                        </span>
+                      </div>
+
+                      <span className="text-[11px] text-slate-400 font-mono">
+                        {new Date(item.createdAt).toLocaleString('ja-JP')}
+                      </span>
                     </div>
 
-                    <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-2.5 hover:border-slate-300 transition">
-                      {/* 上部ヘッダー */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${typeCfg.bg} ${typeCfg.text}`}>
-                            {typeCfg.label}
-                          </span>
-                          <PriorityBadge priority={item.priority} />
-                          {item.requiresResponse && (
-                            <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.2 rounded border border-amber-200">
-                              要回答
-                            </span>
-                          )}
-                        </div>
+                    <p className="text-xs sm:text-sm text-slate-900 whitespace-pre-wrap leading-relaxed">
+                      {item.body}
+                    </p>
 
-                        <div className="text-[11px] text-slate-400">
-                          {new Date(item.createdAt).toLocaleString('ja-JP')}
-                        </div>
+                    {/* 確認マーク・ボタンスペース */}
+                    <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-100 text-xs">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-slate-400 text-[11px]">確認状況:</span>
+                        {item.confirmedBy && item.confirmedBy.length > 0 ? (
+                          item.confirmedBy.map((c) => (
+                            <span
+                              key={c.userId}
+                              className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded border border-emerald-200"
+                            >
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              {c.userName}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded">
+                            未確認
+                          </span>
+                        )}
                       </div>
 
-                      {/* 本文 */}
-                      <p className="text-xs sm:text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
-                        {item.body}
-                      </p>
-
-                      {/* フッター: 投稿者 & 確認済みトグル */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
-                        <div className="flex items-center gap-2 text-slate-500">
-                          <User className="w-3.5 h-3.5 text-slate-400" />
-                          <span>
-                            <strong className="text-slate-700">{item.authorName}</strong> ({item.authorRole})
-                          </span>
-                        </div>
-
-                        {/* 確認済み機能 (要件) */}
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => handleToggleConfirm(item.id)}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold transition ${
-                              isConfirmedByMe
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
-                            }`}
-                          >
-                            <CheckCircle2 className={`w-3.5 h-3.5 ${isConfirmedByMe ? 'text-emerald-600' : 'text-slate-400'}`} />
-                            <span>{isConfirmedByMe ? '確認済み' : '確認する'}</span>
-                          </button>
-
-                          {item.confirmedBy && item.confirmedBy.length > 0 && (
-                            <span className="text-[10px] text-slate-400" title={item.confirmedBy.map((c) => c.userName).join(', ')}>
-                              確認者: {item.confirmedBy.map((c) => c.userName).join('・')}
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                      {user && (
+                        <button
+                          onClick={() => handleToggleConfirm(item.id)}
+                          className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded transition border ${
+                            isConfirmedByMe
+                              ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+                              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                          }`}
+                        >
+                          <CheckCircle2 className={`w-3.5 h-3.5 ${isConfirmedByMe ? 'text-emerald-600' : 'text-slate-400'}`} />
+                          <span>{isConfirmedByMe ? '確認済み' : '確認する'}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          )}
+              })
+            )}
+          </div>
         </div>
       </div>
 
+      {/* 患者情報編集モーダル */}
       <PatientModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
