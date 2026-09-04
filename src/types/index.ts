@@ -32,6 +32,8 @@ export interface Patient {
   id: string;
   patientCode: string;          // 例: P-001
   displayName: string;          // 例: 患者A
+  patientType?: string;         // 区分 (例: 日体生, 一般)
+  clubActivity?: string;        // 部活動・現在行っている運動 (例: 陸上部, 水泳など)
   age?: string;                 // 年齢 (例: 45歳)
   gender?: string;              // 性別 (例: 男性, 女性, その他)
   medicalHistory?: string;      // 既往歴

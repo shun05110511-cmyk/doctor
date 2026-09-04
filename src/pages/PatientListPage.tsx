@@ -220,6 +220,20 @@ export const PatientListPage: React.FC = () => {
                           {p.displayName}
                         </h2>
                         <StatusBadge status={p.status} size="sm" />
+                        {p.patientType && (
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${
+                            p.patientType === '日体生'
+                              ? 'bg-blue-100 text-blue-800 border-blue-200'
+                              : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                          }`}>
+                            {p.patientType}
+                          </span>
+                        )}
+                        {p.clubActivity && (
+                          <span className="text-[11px] bg-purple-50 text-purple-900 font-bold px-2 py-0.5 rounded border border-purple-200">
+                            {p.clubActivity}
+                          </span>
+                        )}
                         {p.age && (
                           <span className="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 font-medium">
                             {p.age}

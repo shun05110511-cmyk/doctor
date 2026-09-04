@@ -20,6 +20,8 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
 
   const [patientCode, setPatientCode] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [patientType, setPatientType] = useState('日体生');
+  const [clubActivity, setClubActivity] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('未回答');
   const [medicalHistory, setMedicalHistory] = useState('');
@@ -45,6 +47,8 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
     if (initialData) {
       setPatientCode(initialData.patientCode);
       setDisplayName(initialData.displayName);
+      setPatientType(initialData.patientType || '日体生');
+      setClubActivity(initialData.clubActivity || '');
       setAge(initialData.age || '');
       setGender(initialData.gender || '未回答');
       setMedicalHistory(initialData.medicalHistory || '');
@@ -62,6 +66,8 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
       // 初期新規作成時
       setPatientCode(`P-00${Math.floor(Math.random() * 900 + 100)}`);
       setDisplayName('');
+      setPatientType('日体生');
+      setClubActivity('');
       setAge('');
       setGender('未回答');
       setMedicalHistory('');
@@ -115,6 +121,8 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
         await updatePatient(initialData.id, {
           patientCode: patientCode.trim(),
           displayName: displayName.trim(),
+          patientType,
+          clubActivity: clubActivity.trim(),
           age: age.trim(),
           gender,
           medicalHistory: medicalHistory.trim(),
@@ -135,6 +143,8 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
         await createPatient({
           patientCode: patientCode.trim(),
           displayName: displayName.trim(),
+          patientType,
+          clubActivity: clubActivity.trim(),
           age: age.trim(),
           gender,
           medicalHistory: medicalHistory.trim(),
@@ -215,6 +225,32 @@ export const PatientModal: React.FC<Props> = ({ isOpen, onClose, initialData }) 
                 required
               />
               <span className="text-[10px] text-slate-400">実名は使用せず仮名を入力してください</span>
+            </div>
+          </div>
+
+          {/* 区分 (日体生/一般) & 部活動・運動 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-blue-50/40 p-3 rounded-xl border border-blue-100">
+            <div>
+              <label className="block font-bold text-blue-900 mb-1">区分 (日体生か一般か)</label>
+              <select
+                value={patientType}
+                onChange={(e) => setPatientType(e.target.value)}
+                className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-bold text-blue-900"
+              >
+                <option value="日体生">日体生 (日本体育大学)</option>
+                <option value="一般">一般 (学外・一般の方)</option>
+                <option value="その他">その他</option>
+              </select>
+            </div>
+            <div>
+              <label className="block font-bold text-blue-900 mb-1">部活動・現在行っている運動</label>
+              <input
+                type="text"
+                value={clubActivity}
+                onChange={(e) => setClubActivity(e.target.value)}
+                placeholder="例: 陸上部(短距離)、バスケットボールなど"
+                className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              />
             </div>
           </div>
 

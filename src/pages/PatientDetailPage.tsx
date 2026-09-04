@@ -338,6 +338,20 @@ export const PatientDetailPage: React.FC = () => {
                   <StatusBadge status={patient.status} size="lg" />
                 </h1>
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  {patient.patientType && (
+                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded border ${
+                      patient.patientType === '日体生'
+                        ? 'bg-blue-100 text-blue-800 border-blue-300'
+                        : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    }`}>
+                      区分: {patient.patientType}
+                    </span>
+                  )}
+                  {patient.clubActivity && (
+                    <span className="text-xs bg-purple-50 text-purple-900 font-bold px-2.5 py-0.5 rounded border border-purple-200">
+                      部活・運動: {patient.clubActivity}
+                    </span>
+                  )}
                   {patient.age && (
                     <span className="text-xs bg-slate-100 text-slate-700 font-bold px-2.5 py-0.5 rounded border border-slate-200">
                       年齢: {patient.age}
