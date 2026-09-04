@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { exportAllDataJson, importAllDataJson } from '../services/patientService';
+import { exportAllDataJson, importAllDataJson, syncLocalDataToCloud } from '../services/patientService';
 import { usePatients } from '../context/PatientContext';
-import { X, Download, Upload, RefreshCw, Smartphone, AlertCircle, CheckCircle, Database } from 'lucide-react';
+import { X, Download, Upload, RefreshCw, AlertCircle, CheckCircle, CloudUpload } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -12,8 +12,27 @@ export const DataSyncModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const { refreshPatients } = usePatients();
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [importing, setImporting] = useState(false);
+  const [syncingCloud, setSyncingCloud] = useState(false);
 
   if (!isOpen) return null;
+
+  // このPCのローカルデータを一括でクラウド（Firebase）へ送信
+  const handleCloudSync = async () => {
+    setSyncingCloud(true);
+    setMessage(null);
+    try {
+      const count = await syncLocalDataToCloud();
+      await refreshPatients();
+      setMessage({
+        text: `全自動クラウド同期完了！${count}件の患者データとやり取り履歴をクラウドデータベースへ同期送信しました。他デバイス（スマホ・他PC）で即座に閲覧可能です！`,
+        type: 'success',
+      });
+    } catch (err: any) {
+      setMessage({ text: 'クラウド同期エラー: ' + err.message, type: 'error' });
+    } finally {
+      setSyncingCloud(false);
+    }
+  };
 
   // データファイルのエクスポート（ダウンロード）
   const handleExport = () => {
@@ -50,10 +69,10 @@ export const DataSyncModal: React.FC<Props> = ({ isOpen, onClose }) => {
     reader.onload = async (event) => {
       try {
         const content = event.target?.result as string;
-        const res = importAllDataJson(content);
+        const res = await importAllDataJson(content);
         await refreshPatients();
         setMessage({
-          text: `データ移行完了！${res.patientCount}件の患者情報をこのデバイスに反映しました。`,
+          text: `データ移行完了！${res.patientCount}件の患者情報をこのデバイスおよびクラウドに反映しました。`,
           type: 'success',
         });
       } catch (err: any) {
@@ -84,18 +103,29 @@ export const DataSyncModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
         {/* 内容エリア */}
         <div className="p-6 overflow-y-auto space-y-5 text-xs sm:text-sm">
-          {/* 原因解説ボックス */}
-          <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl space-y-2">
-            <div className="flex items-center gap-2 font-bold text-blue-900 text-sm">
-              <Smartphone className="w-5 h-5 text-blue-600 flex-shrink-0" />
-              <span>なぜ他デバイス（スマホ・PC）で見られないのか？</span>
+          {/* クラウド同期実行メインセクション */}
+          <div className="bg-emerald-50 border-2 border-emerald-300 p-4.5 rounded-xl space-y-3 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold text-emerald-950 text-sm sm:text-base">
+                <CloudUpload className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+                <span>このPCにある患者データを全他デバイスへ同期</span>
+              </div>
+              <span className="text-[10px] bg-emerald-200 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                推奨
+              </span>
             </div>
             <p className="text-slate-700 text-xs leading-relaxed">
-              現在、本アプリはセキュリティおよび動作検証のため、各デバイス（パソコン・スマホ）のブラウザ内（ローカルストレージ）にデータを安全に保持する仕様となっております。
+              現在お使いのパソコンに保存されている既存患者データとやり取り履歴を、ワンクリックでクラウドデータベース（Firebase）へ一括送信・同期します。
             </p>
-            <p className="text-slate-700 text-xs leading-relaxed">
-              以下の方法で<strong>「手動データ転送（無料）」</strong>を行うか、<strong>「クラウド自動連携（Firebase設定）」</strong>を行うことで、全デバイス間での共有が可能です。
-            </p>
+
+            <button
+              onClick={handleCloudSync}
+              disabled={syncingCloud}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs sm:text-sm transition shadow-md disabled:opacity-50"
+            >
+              <CloudUpload className="w-5 h-5" />
+              <span>{syncingCloud ? 'クラウドへ同期送信中...' : 'このPCの既存データをクラウドに同期送信する'}</span>
+            </button>
           </div>
 
           {/* メッセージ通知 */}
@@ -116,16 +146,14 @@ export const DataSyncModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* 方法1: 手動ファイル共有 (エクスポート & インポート) */}
+          {/* 方法2: 手動ファイル共有 (エクスポート & インポート) */}
           <div className="border border-slate-200 rounded-xl p-4 space-y-3 bg-white">
             <h4 className="font-bold text-slate-900 text-xs sm:text-sm flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
-                1
-              </span>
-              <span>手動でデータを共有する (1タップで簡単転送)</span>
+              <Download className="w-4 h-4 text-blue-600" />
+              <span>ファイルでバックアップ保存 / 直接取り込み</span>
             </h4>
             <p className="text-slate-500 text-xs">
-              現在入力済みのパソコンでファイルを「エクスポート」し、共有したいスマホや他PCで「インポート」すると全データが同期されます。
+              データをファイルとしてパソコンに保存（バックアップ）したり、バックアップファイルからデータを復元することができます。
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -139,9 +167,9 @@ export const DataSyncModal: React.FC<Props> = ({ isOpen, onClose }) => {
               </button>
 
               {/* 取り込みボタン */}
-              <label className="flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs cursor-pointer transition shadow-sm">
+              <label className="flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-700 hover:bg-slate-800 text-white font-bold rounded-lg text-xs cursor-pointer transition shadow-sm">
                 <Upload className="w-4 h-4" />
-                <span>{importing ? '取り込み中...' : 'データ取り込み (インポート)'}</span>
+                <span>{importing ? '取り込み中...' : 'ファイルから取り込み (インポート)'}</span>
                 <input
                   type="file"
                   accept=".json"
@@ -151,17 +179,6 @@ export const DataSyncModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 />
               </label>
             </div>
-          </div>
-
-          {/* 方法2: クラウド自動リアルタイム同期についての案内 */}
-          <div className="border border-slate-200 rounded-xl p-4 space-y-2 bg-slate-50">
-            <h4 className="font-bold text-slate-900 text-xs sm:text-sm flex items-center gap-2">
-              <Database className="w-4 h-4 text-purple-600" />
-              <span>全自動クラウドリアルタイム同期 (Firebase)</span>
-            </h4>
-            <p className="text-slate-600 text-xs leading-relaxed">
-              Cloudflare Pages 側の環境変数に Firebase APIキー（`VITE_FIREBASE_API_KEY` 等）を紐付けると、手動でファイルを共有することなく、<strong>スマホやPCで入力したデータが常にリアルタイムで自動同期</strong>されます。
-            </p>
           </div>
         </div>
 

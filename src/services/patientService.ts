@@ -425,6 +425,62 @@ export async function deletePatient(patientId: string): Promise<void> {
   }
 }
 
+// 既存のPCローカルデータを一括でクラウド（Firebase）へ同期アップロード
+export async function syncLocalDataToCloud(): Promise<number> {
+  if (!isFirebaseConfigured) return 0;
+
+  const localPatients = getLocalPatients();
+  const localTimelines = getLocalTimelines();
+
+  if (localPatients.length === 0) return 0;
+
+  let syncedCount = 0;
+  for (const p of localPatients) {
+    try {
+      const docRef = doc(db, 'patients', p.id);
+      const { id, unreadCount, ...pData } = p;
+      await withTimeout(
+        setDoc(
+          docRef,
+          {
+            ...pData,
+            id: p.id,
+            createdAt: p.createdAt || serverTimestamp(),
+            updatedAt: p.updatedAt || serverTimestamp(),
+          },
+          { merge: true }
+        ),
+        3000
+      );
+
+      const pTimeline = localTimelines[p.id] || [];
+      for (const tItem of pTimeline) {
+        const tRef = doc(db, 'patients', p.id, 'timeline', tItem.id);
+        const { id: tId, patientId, ...tData } = tItem;
+        await withTimeout(
+          setDoc(
+            tRef,
+            {
+              ...tData,
+              id: tId,
+              patientId: p.id,
+              createdAt: tItem.createdAt || serverTimestamp(),
+              updatedAt: tItem.updatedAt || serverTimestamp(),
+            },
+            { merge: true }
+          ),
+          3000
+        );
+      }
+      syncedCount++;
+    } catch (err) {
+      console.warn(`Failed to sync patient ${p.id} to cloud:`, err);
+    }
+  }
+
+  return syncedCount;
+}
+
 // 他デバイス連携・データエクスポート（バックアップ出力）
 export function exportAllDataJson(): string {
   const patients = getLocalPatients();
@@ -440,8 +496,8 @@ export function exportAllDataJson(): string {
   return JSON.stringify(data, null, 2);
 }
 
-// 他デバイス連携・データインポート（取り込み復元）
-export function importAllDataJson(jsonStr: string): { patientCount: number } {
+// 他デバイス連携・データインポート（取り込み復元＆クラウド反映）
+export async function importAllDataJson(jsonStr: string): Promise<{ patientCount: number }> {
   const parsed = JSON.parse(jsonStr);
   if (!parsed || typeof parsed !== 'object') {
     throw new Error('無効なデータ形式です。正しいバックアップファイルを選択してください。');
@@ -455,6 +511,10 @@ export function importAllDataJson(jsonStr: string): { patientCount: number } {
   saveLocalTimelines(newTimelines);
   if (newDoctors.length > 0) {
     saveLocalDoctors(newDoctors);
+  }
+
+  if (isFirebaseConfigured) {
+    await syncLocalDataToCloud();
   }
 
   return { patientCount: newPatients.length };
