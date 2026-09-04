@@ -424,3 +424,38 @@ export async function deletePatient(patientId: string): Promise<void> {
     }
   }
 }
+
+// 他デバイス連携・データエクスポート（バックアップ出力）
+export function exportAllDataJson(): string {
+  const patients = getLocalPatients();
+  const timelines = getLocalTimelines();
+  const doctors = getLocalDoctors();
+  const data = {
+    version: '1.0',
+    exportedAt: new Date().toISOString(),
+    patients,
+    timelines,
+    doctors,
+  };
+  return JSON.stringify(data, null, 2);
+}
+
+// 他デバイス連携・データインポート（取り込み復元）
+export function importAllDataJson(jsonStr: string): { patientCount: number } {
+  const parsed = JSON.parse(jsonStr);
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('無効なデータ形式です。正しいバックアップファイルを選択してください。');
+  }
+
+  const newPatients: Patient[] = Array.isArray(parsed.patients) ? parsed.patients : [];
+  const newTimelines: Record<string, TimelineItem[]> = parsed.timelines && typeof parsed.timelines === 'object' ? parsed.timelines : {};
+  const newDoctors: Doctor[] = Array.isArray(parsed.doctors) ? parsed.doctors : [];
+
+  saveLocalPatients(newPatients);
+  saveLocalTimelines(newTimelines);
+  if (newDoctors.length > 0) {
+    saveLocalDoctors(newDoctors);
+  }
+
+  return { patientCount: newPatients.length };
+}
