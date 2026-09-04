@@ -427,55 +427,49 @@ export async function deletePatient(patientId: string): Promise<void> {
 
 // 既存のPCローカルデータを一括でクラウド（Firebase）へ同期アップロード
 export async function syncLocalDataToCloud(): Promise<number> {
-  if (!isFirebaseConfigured) return 0;
+  if (!isFirebaseConfigured) {
+    throw new Error('Firebaseクラウド設定が有効になっていません。');
+  }
 
   const localPatients = getLocalPatients();
   const localTimelines = getLocalTimelines();
 
-  if (localPatients.length === 0) return 0;
+  if (localPatients.length === 0) {
+    throw new Error('このパソコンに保存されている既存患者データが見つかりません。');
+  }
 
   let syncedCount = 0;
   for (const p of localPatients) {
-    try {
-      const docRef = doc(db, 'patients', p.id);
-      const { id, unreadCount, ...pData } = p;
-      await withTimeout(
-        setDoc(
-          docRef,
-          {
-            ...pData,
-            id: p.id,
-            createdAt: p.createdAt || serverTimestamp(),
-            updatedAt: p.updatedAt || serverTimestamp(),
-          },
-          { merge: true }
-        ),
-        3000
-      );
+    const docRef = doc(db, 'patients', p.id);
+    const { id, unreadCount, ...pData } = p;
+    await setDoc(
+      docRef,
+      {
+        ...pData,
+        id: p.id,
+        createdAt: p.createdAt || serverTimestamp(),
+        updatedAt: p.updatedAt || serverTimestamp(),
+      },
+      { merge: true }
+    );
 
-      const pTimeline = localTimelines[p.id] || [];
-      for (const tItem of pTimeline) {
-        const tRef = doc(db, 'patients', p.id, 'timeline', tItem.id);
-        const { id: tId, patientId, ...tData } = tItem;
-        await withTimeout(
-          setDoc(
-            tRef,
-            {
-              ...tData,
-              id: tId,
-              patientId: p.id,
-              createdAt: tItem.createdAt || serverTimestamp(),
-              updatedAt: tItem.updatedAt || serverTimestamp(),
-            },
-            { merge: true }
-          ),
-          3000
-        );
-      }
-      syncedCount++;
-    } catch (err) {
-      console.warn(`Failed to sync patient ${p.id} to cloud:`, err);
+    const pTimeline = localTimelines[p.id] || [];
+    for (const tItem of pTimeline) {
+      const tRef = doc(db, 'patients', p.id, 'timeline', tItem.id);
+      const { id: tId, patientId, ...tData } = tItem;
+      await setDoc(
+        tRef,
+        {
+          ...tData,
+          id: tId,
+          patientId: p.id,
+          createdAt: tItem.createdAt || serverTimestamp(),
+          updatedAt: tItem.updatedAt || serverTimestamp(),
+        },
+        { merge: true }
+      );
     }
+    syncedCount++;
   }
 
   return syncedCount;
